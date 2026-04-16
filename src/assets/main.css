@@ -1,0 +1,58 @@
+/* 基礎變數與重設 */
+:root {
+  --primary-color: #1A432D;
+  --bg-color: #FFFFFF;
+  --text-dark: #1A432D;
+  --text-light: #FFFFFF;
+  --accent-color: #E2C044;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Helvetica Neue', Arial, '微軟正黑體', sans-serif;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+  line-height: 1.6;
+  padding-top: 70px; /* 避開固定導覽列 */
+}
+
+/* 導覽列 Navbar (因為全站都會用到) */
+.navbar {
+  position: fixed;
+  top: 0; width: 100%;
+  background-color: var(--primary-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 40px;
+  z-index: 1000;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.brand-link { display: flex; align-items: center; text-decoration: none; gap: 15px; }
+.brand-logo { height: 50px; width: 75px; object-fit: contain; filter: brightness(0) invert(1); }
+.brand-text { color: var(--text-light); font-size: 1.4rem; font-weight: bold; }
+
+.nav-links { list-style: none; display: flex; gap: 25px; }
+.nav-links a { color: var(--text-light); text-decoration: none; font-weight: bold; }
+.nav-links a:hover { color: var(--accent-color); }
+
+/* 頁尾 */
+footer {
+  background-color: var(--primary-color);
+  color: var(--text-light);
+  text-align: center;
+  padding: 20px 0;
+  margin-top: auto;
+}
+
+/* 響應式基礎 */
+@media screen and (max-width: 768px) {
+  .navbar { flex-direction: column; padding: 10px 15px; }
+  body { padding-top: 95px; }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "wanrong-hotspring-2026",
+  "title": "野溪溫泉 - 萬萬不可榮忍",
+  "semester": "114-2",
+  "days": "三天兩夜",
+  "difficulty": "休閒野營",
+  "coverImage": "https://images.unsplash.com/photo-1544198365-f5d60b6d8190?auto=format&fit=crop&q=80",
+  "plan": [
+    {
+      "dayLabel": "D1 (2/28)",
+      "items": [
+        { "time": "05:00", "location": "中原大學", "info": "搭車出發", "type": "ride" },
+        { "time": "10:05", "location": "萬榮消防分隊", "info": "下車整裝 (換重裝)", "type": "heavy" },
+        { "time": "10:30", "location": "林田山停車場", "info": "起登出發", "type": "heavy" },
+        { "time": "11:30", "location": "萬里溪下切處", "info": "通過", "type": "heavy" },
+        { "time": "12:10", "location": "溫泉營地", "info": "抵達扎營 (18:00 泡摩里沙卡溫泉，20:30 宵夜，24:00 就寢)", "type": "heavy" }
+      ]
+    },
+    {
+      "dayLabel": "D2 (3/1)",
+      "items": [
+        { "time": "11:10", "location": "溫泉營地", "info": "睡到自然醒，輕裝出發", "type": "light" },
+        { "time": "11:28", "location": "第一面彩壁", "info": "通過", "type": "light" },
+        { "time": "11:43", "location": "第二面彩壁", "info": "通過", "type": "light" },
+        { "time": "12:03", "location": "小鴛鴦谷溫泉", "info": "一人池", "type": "light" },
+        { "time": "12:20", "location": "大鴛鴦谷溫泉", "info": "十五人以上池，泡湯大休 (15:50 離開)", "type": "light" },
+        { "time": "16:20", "location": "溫泉營地", "info": "返回營地", "type": "light" }
+      ]
+    },
+    {
+      "dayLabel": "D3 (3/2)",
+      "items": [
+        { "time": "09:00", "location": "溫泉營地", "info": "起床收拾營地 (11:50 拔營重裝出發)", "type": "heavy" },
+        { "time": "12:25", "location": "萬里溪下切處", "info": "通過", "type": "heavy" },
+        { "time": "13:00", "location": "林田山停車場", "info": "全員平安登出 (準備轉搭車)", "type": "heavy" },
+        { "time": "13:30", "location": "林田山停車場", "info": "搭車北返", "type": "ride" },
+        { "time": "21:00", "location": "中原大學", "info": "順利返抵學校", "type": "ride" }
+      ]
+    }
+  ]
+}

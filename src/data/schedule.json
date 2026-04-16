@@ -1,0 +1,40 @@
+{
+  "semester": "114-2",
+  "title": "114-2 行事曆",
+  "items": [
+    {
+      "date": "3/7-8",
+      "title": "二子山溫泉",
+      "facebook_url": "https://www.facebook.com/share/g/1GDuJ7Xund/?mibextid=wwXIfr",
+      "description" : "想在這個冷颼颼的冬季裡，一起浸泡在暖呼呼的溫泉裡嗎？這不只是一場登山，而是一次感官的極致享受！開學第二週，給自己一個最熱血的開始吧！"
+    },
+    {
+      "date": "3/14",
+      "title": "帶小朋友上山 - 東眼山",
+      "facebook_url": "無"
+    },
+    {
+      "date": "4/3-6",
+      "title": "中嚮 - 嵐山工作站",
+      "facebook_url": "https://www.facebook.com/groups/你的FB社團ID/333/"
+    },
+    {
+      "date": "5/1-5/3",
+      "title": "白姑大山",
+      "facebook_url": "https://www.facebook.com/share/g/1CRz7Lh9kf/?mibextid=wwXIfr",
+      "description" : "白姑大山，又名白狗大山，為百岳「十翠」之一，與羊頭山、畢祿山、屏風山合稱中横四辣，白姑為四辣之首，屬特辣等級。"
+
+    },
+    {
+      "date": "5/30-5/31",
+      "title": "設計聯隊 - 奇萊南華",
+      "facebook_url": "https://www.facebook.com/groups/你的FB社團ID/444/"
+    },
+    {
+      "date": "6/28-7/1",
+      "title": "期末大山 - 雪主東北",
+      "facebook_url": "https://www.facebook.com/groups/你的FB社團ID/444/"
+    }
+
+  ]
+}
