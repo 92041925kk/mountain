@@ -1,9 +1,5 @@
 <template>
   <div class="history-page">
-    
-    <LoadingOverlay v-if="isLoading" text="翻閱社史中..." />
-
-    <template v-if="!isLoading">
       <header class="page-header">
         <h1>山社歷史</h1>
         <p>那些年，我們一起爬過的山</p>
@@ -15,27 +11,10 @@
           <p>這裡可以填寫中原登山社創立的故事、初衷，以及歷屆學長姐傳承下來的精神...</p>
         </section>
       </main>
-    </template>
-
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-// ⚠️ 記得確保路徑正確，通常是 ../components/LoadingOverlay.vue
-import LoadingOverlay from '../components/LoadingOverlay.vue';
-
-// --- 狀態控制 ---
-const isLoading = ref(true);
-
-// --- 生命週期：模擬載入過程 ---
-onMounted(() => {
-  // 因為歷史頁面目前是靜態文字 (沒有抓 Firebase)，我們用 setTimeout 讓假進度條跑個 0.6 秒
-  // 這樣切換頁面時才會有滑順的過場動畫！
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 600);
-});
 </script>
 
 <style scoped>

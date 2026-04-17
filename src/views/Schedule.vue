@@ -70,24 +70,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
-
-// 🌟 匯入共用載入元件
+import { doc, getDoc } from "firebase/firestore";
+import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
-
-// --- Firebase 配置 ---
-const firebaseConfig = {
-  apiKey: "你的API金鑰", 
-  authDomain: "cymc2-7d93e.firebaseapp.com",
-  projectId: "cymc2-7d93e", 
-  storageBucket: "cymc2-7d93e.firebasestorage.app", 
-  messagingSenderId: "你的ID",
-  appId: "你的AppId"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 // --- 狀態控制 ---
 const scheduleData = ref({ items: [] });
@@ -102,15 +87,17 @@ const toggleDropdown = (index) => {
 // --- 初始化抓取資料 ---
 onMounted(async () => {
   try {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('連線逾時')), 8000)
+    );
     const docRef = doc(db, "schedules", "114-2"); 
-    const docSnap = await getDoc(docRef);
+    const docSnap = await Promise.race([getDoc(docRef), timeout]);
     if (docSnap.exists()) {
       scheduleData.value = docSnap.data();
     }
   } catch (error) {
     console.error("Firebase 連線錯誤:", error);
   } finally {
-    // 讀取完成後，稍微延遲一點再關閉動畫
     setTimeout(() => {
       isLoading.value = false;
     }, 600);

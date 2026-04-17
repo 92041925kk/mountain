@@ -17,10 +17,10 @@
       <LoadingOverlay v-if="isLoading" text="探索山林中..." />
         
       <div class="trip-grid" v-else> 
-        <a 
+        <router-link 
           v-for="trip in filteredTrips" 
           :key="trip.id"
-          :href="'/trip?id=' + trip.id" 
+          :to="{ name: 'TripDetail', query: { id: trip.id } }" 
           class="trip-card"
         >
           <div class="card-img" :style="{ backgroundImage: `url(${trip.coverImage || defaultImg})` }"></div>
@@ -30,7 +30,7 @@
             <h3>{{ trip.title }}</h3>
             <p class="meta-info">天數：{{ trip.days }} | 難度：{{ trip.difficulty }}</p>
           </div>
-        </a>
+        </router-link>
       </div>
     </main>
   </div>
@@ -38,26 +38,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
-
-// 🌟 修正點 2：一定要把它 import 進來，Vue 才認得這個標籤！
-// ⚠️ 這裡的路徑請依據你專案的實際位置調整，通常是 ../components/ 或 @/components/
+import { collection, getDocs } from "firebase/firestore";
+import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
-
-// --- Firebase 配置 (請確保換成你的金鑰) ---
-const firebaseConfig = {
-  apiKey: "你的API金鑰",
-  authDomain: "cymc2-7d93e.firebaseapp.com",
-  projectId: "cymc2-7d93e",
-  storageBucket: "cymc2-7d93e.firebasestorage.app",
-  messagingSenderId: "你的ID",
-  appId: "你的AppId"
-};
-
-// 初始化 Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 // --- 狀態控制 ---
 const trips = ref([]);
@@ -79,10 +62,12 @@ const filteredTrips = computed(() => {
 });
 
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
-// --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
 onMounted(async () => {
   try {
-    const querySnapshot = await getDocs(collection(db, "trip"));
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('連線逾時')), 8000)
+    );
+    const querySnapshot = await Promise.race([getDocs(collection(db, "trip")), timeout]);
     const tempTrips = [];
     
     querySnapshot.forEach((doc) => {

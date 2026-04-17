@@ -1,7 +1,13 @@
 <template>
   <div id="app">
     <Navbar />
-    <router-view />
+    <div class="page-content">
+      <router-view v-slot="{ Component }">
+        <Transition name="page-fade" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </router-view>
+    </div>
     <Footer />
   </div>
 </template>
@@ -10,3 +16,25 @@
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 </script>
+
+<style>
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.page-content {
+  flex: 1;
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+}
+</style>

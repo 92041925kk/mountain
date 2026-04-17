@@ -1,9 +1,5 @@
 <template>
   <div class="join-page">
-    
-    <LoadingOverlay v-if="isLoading" text="準備報名表中..." />
-
-    <template v-if="!isLoading">
       <header class="page-header">
         <h1>加入山社</h1>
         <p>成為我們的一份子，開啟你的高山旅程</p>
@@ -26,24 +22,10 @@
           </div>
         </section>
       </main>
-    </template>
-    
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-// ⚠️ 確認路徑是否正確
-import LoadingOverlay from '../components/LoadingOverlay.vue';
-
-const isLoading = ref(true);
-
-onMounted(() => {
-  // 模擬載入時間，讓過場動畫平滑過渡
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 500);
-});
 </script>
 
 <style scoped>

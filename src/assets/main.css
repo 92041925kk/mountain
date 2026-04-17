@@ -48,11 +48,53 @@ footer {
   color: var(--text-light);
   text-align: center;
   padding: 20px 0;
-  margin-top: auto;
 }
+
+/* 漢堡按鈕 (桌面版隱藏) */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  z-index: 1001;
+}
+
+.hamburger span {
+  display: block;
+  width: 26px;
+  height: 3px;
+  background: var(--text-light);
+  margin: 5px 0;
+  border-radius: 2px;
+  transition: transform 0.3s, opacity 0.3s;
+}
+
+.hamburger.is-open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+.hamburger.is-open span:nth-child(2) { opacity: 0; }
+.hamburger.is-open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
 
 /* 響應式基礎 */
 @media screen and (max-width: 768px) {
-  .navbar { flex-direction: column; padding: 10px 15px; }
-  body { padding-top: 95px; }
+  .navbar {
+    flex-wrap: wrap;
+    padding: 10px 15px;
+  }
+
+  .hamburger { display: block; }
+
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 0;
+    padding: 10px 0 5px;
+  }
+
+  .nav-links.nav-open { display: flex; }
+
+  .nav-links li { text-align: center; }
+  .nav-links a { display: block; padding: 10px 0; }
+
+  body { padding-top: 60px; }
 }

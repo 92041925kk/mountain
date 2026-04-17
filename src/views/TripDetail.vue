@@ -71,25 +71,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, initializeFirestore } from "firebase/firestore";
-
-// 🌟 修正：刪除重複的 LoadingOverlay 引入
+import { useRoute } from 'vue-router';
+import { doc, getDoc } from "firebase/firestore";
+import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import TripSidebar from '../components/TripSidebar.vue';
 
-// --- Firebase 配置 ---
-const firebaseConfig = {
-  apiKey: "你的API金鑰", 
-  authDomain: "cymc2-7d93e.firebaseapp.com",
-  projectId: "cymc2-7d93e", 
-  storageBucket: "cymc2-7d93e.firebasestorage.app", 
-  messagingSenderId: "你的ID",
-  appId: "你的AppId"
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-const db = initializeFirestore(firebaseApp, { experimentalForceLongPolling: true });
+const route = useRoute();
 
 const trip = ref({});
 const plan = ref([]);
@@ -104,12 +92,14 @@ const heroStyle = computed(() => {
 });
 
 onMounted(async () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const tripId = urlParams.get('id') || 'hehuan-nw-2026';
+  const tripId = route.query.id || 'hehuan-nw-2026';
 
   try {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('連線逾時')), 8000)
+    );
     const docRef = doc(db, "trip", tripId);
-    const docSnap = await getDoc(docRef);
+    const docSnap = await Promise.race([getDoc(docRef), timeout]);
 
     if (docSnap.exists()) {
       const data = docSnap.data();

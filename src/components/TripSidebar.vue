@@ -26,11 +26,7 @@
         📄 下載行程紀錄 (PDF)
       </a>
       
-      <a v-if="trip.gpxUrl" :href="trip.gpxUrl" target="_blank" class="btn-download gpx-btn">
-        🗺️ 下載 GPX 軌跡檔
-      </a>
-      
-      <p v-if="!trip.pdfUrl && !trip.gpxUrl" style="color: #999; font-size: 0.9rem;">
+      <p v-if="!trip.pdfUrl" style="color: #999; font-size: 0.9rem;">
         目前尚未上傳相關檔案
       </p>
     </div>
@@ -38,12 +34,11 @@
 </template>
 
 <script setup>
-// 🌟 接收外部 (TripDetail) 傳進來的 trip 資料
 defineProps({
   trip: {
     type: Object,
     required: true,
-    default: () => ({}) // 如果沒資料，預設給一個空物件防呆
+    default: () => ({})
   }
 });
 </script>
@@ -71,10 +66,6 @@ defineProps({
   margin-bottom: 12px; 
 }
 .btn-download:hover { background: #1A432D; color: white; }
-
-/* GPX 按鈕專屬橘色 */
-.btn-download.gpx-btn { border-color: #d35400; color: #d35400; }
-.btn-download.gpx-btn:hover { background: #d35400; color: white; }
 
 /* 響應式：手機版取消 sticky，讓它自然往下排 */
 @media (max-width: 900px) {

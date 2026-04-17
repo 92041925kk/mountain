@@ -42,11 +42,11 @@ onUnmounted(() => {
 <style scoped>
 /* 基本置中排版 */
 .loading-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: #ffffff; /* 🌟 修正 1：改成純白色，解決半透明走光的問題 */
+  position: fixed; top: 70px; left: 0; width: 100%; height: calc(100% - 70px);
+  background: #ffffff;
   display: flex; flex-direction: column;
   justify-content: center; align-items: center; 
-  z-index: 9999;
+  z-index: 999;
 }
 
 /* 呼吸燈動畫 */
