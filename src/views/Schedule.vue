@@ -3,7 +3,12 @@
     
     <LoadingOverlay v-if="isLoading" text="載入行事曆中..." />
 
-    <template v-if="!isLoading">
+    <div v-if="errorMsg && !isLoading" class="error-banner">
+      <p>⚠️ {{ errorMsg }}</p>
+      <button class="btn-retry" @click="$router.go(0)">重新載入</button>
+    </div>
+
+    <template v-if="!isLoading && !errorMsg">
       <header class="page-header">
         <div class="container">
           <h1>{{ scheduleData.title || '學期行事曆' }}</h1>
@@ -22,6 +27,8 @@
             v-for="(item, index) in scheduleData.items" 
             :key="index" 
             class="schedule-card"
+            data-aos="fade-up"
+            :data-aos-delay="index * 80"
           >
             <div class="card-header" @click="toggleDropdown(index)">
               <div class="date-side">
@@ -71,12 +78,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { doc, getDoc } from "firebase/firestore";
+
+defineOptions({ name: 'Schedule' });
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 
 // --- 狀態控制 ---
 const scheduleData = ref({ items: [] });
 const isLoading = ref(true);
+const errorMsg = ref('');
 const activeIndex = ref(null); 
 
 // --- 切換下拉功能 ---
@@ -97,6 +107,7 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error("Firebase 連線錯誤:", error);
+    errorMsg.value = '載入失敗，請檢查網路連線後重新整理';
   } finally {
     setTimeout(() => {
       isLoading.value = false;

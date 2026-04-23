@@ -3,6 +3,11 @@
     
     <LoadingOverlay v-if="isLoading" text="正在探索山林..." />
 
+    <div v-if="errorMsg && !isLoading" class="error-banner">
+      <p>⚠️ {{ errorMsg }}</p>
+      <button class="btn-retry" @click="$router.go(0)">重新載入</button>
+    </div>
+
     <template v-if="!isLoading">
       <header class="hero">
         <div class="hero-content">
@@ -13,7 +18,7 @@
       </header>
 
       <main class="container">
-        <section class="intro-section">
+        <section class="intro-section" data-aos="fade-up">
           <h2>歡迎來到中原大學登山社</h2>
           <div class="divider"></div>
           <p class="intro-text">
@@ -21,7 +26,7 @@
           </p>
         </section>
 
-        <section class="recent-trips-section" v-if="upcomingTrips.length > 0">
+        <section class="recent-trips-section" v-if="upcomingTrips.length > 0" data-aos="fade-up">
           <h2>即將出發</h2>
           <div class="divider"></div>
           <div class="recent-trips-grid">
@@ -29,6 +34,8 @@
               v-for="(trip, idx) in upcomingTrips" 
               :key="idx"
               class="recent-trip-card"
+              data-aos="fade-up"
+              :data-aos-delay="idx * 100"
             >
               <div class="recent-card-body">
                 <span class="recent-tag">{{ trip.date }}</span>
@@ -58,7 +65,10 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 
+defineOptions({ name: 'Home' });
+
 const isLoading = ref(true);
+const errorMsg = ref('');
 const upcomingTrips = ref([]);
 
 // 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成今年的 Date
@@ -96,6 +106,7 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error('首頁載入即將出發隊伍失敗:', e);
+    errorMsg.value = '載入失敗，請檢查網路連線後重新整理';
   } finally {
     isLoading.value = false;
   }

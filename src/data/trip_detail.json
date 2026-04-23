@@ -1,40 +1,36 @@
 {
-  "id": "wanrong-hotspring-2026",
-  "title": "野溪溫泉 - 萬萬不可榮忍",
-  "semester": "114-2",
-  "days": "三天兩夜",
-  "difficulty": "休閒野營",
-  "coverImage": "https://images.unsplash.com/photo-1544198365-f5d60b6d8190?auto=format&fit=crop&q=80",
+  "id": "laomei-creek-2026",
+  "title": "老梅溪溯溪 - 梅好溯光",
+  "semester": "112-1",
+  "days": "單日",
+  "difficulty": "溯溪體驗",
+  "coverImage": "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&q=80",
   "plan": [
     {
-      "dayLabel": "D1 (2/28)",
+      "dayLabel": "D1 (9/24)",
       "items": [
-        { "time": "05:00", "location": "中原大學", "info": "搭車出發", "type": "ride" },
-        { "time": "10:05", "location": "萬榮消防分隊", "info": "下車整裝 (換重裝)", "type": "heavy" },
-        { "time": "10:30", "location": "林田山停車場", "info": "起登出發", "type": "heavy" },
-        { "time": "11:30", "location": "萬里溪下切處", "info": "通過", "type": "heavy" },
-        { "time": "12:10", "location": "溫泉營地", "info": "抵達扎營 (18:00 泡摩里沙卡溫泉，20:30 宵夜，24:00 就寢)", "type": "heavy" }
-      ]
-    },
-    {
-      "dayLabel": "D2 (3/1)",
-      "items": [
-        { "time": "11:10", "location": "溫泉營地", "info": "睡到自然醒，輕裝出發", "type": "light" },
-        { "time": "11:28", "location": "第一面彩壁", "info": "通過", "type": "light" },
-        { "time": "11:43", "location": "第二面彩壁", "info": "通過", "type": "light" },
-        { "time": "12:03", "location": "小鴛鴦谷溫泉", "info": "一人池", "type": "light" },
-        { "time": "12:20", "location": "大鴛鴦谷溫泉", "info": "十五人以上池，泡湯大休 (15:50 離開)", "type": "light" },
-        { "time": "16:20", "location": "溫泉營地", "info": "返回營地", "type": "light" }
-      ]
-    },
-    {
-      "dayLabel": "D3 (3/2)",
-      "items": [
-        { "time": "09:00", "location": "溫泉營地", "info": "起床收拾營地 (11:50 拔營重裝出發)", "type": "heavy" },
-        { "time": "12:25", "location": "萬里溪下切處", "info": "通過", "type": "heavy" },
-        { "time": "13:00", "location": "林田山停車場", "info": "全員平安登出 (準備轉搭車)", "type": "heavy" },
-        { "time": "13:30", "location": "林田山停車場", "info": "搭車北返", "type": "ride" },
-        { "time": "21:00", "location": "中原大學", "info": "順利返抵學校", "type": "ride" }
+        { "time": "08:40", "location": "青山瀑布停車場", "info": "進行整裝 30 分鐘", "type": "light" },
+        { "time": "09:28", "location": "柵欄口", "info": "進入產業道路並拍攝團照", "type": "light" },
+        { "time": "09:37", "location": "鐵皮屋", "info": "與屋主老夫婦聊天", "type": "light" },
+        { "time": "09:46", "location": "鐵皮屋", "info": "整裝完畢，沿水渠出發", "type": "light" },
+        { "time": "10:01", "location": "水渠進水口", "info": "翻牆進入，說明溯溪原則", "type": "light" },
+        { "time": "10:11", "location": "豬槽潭瀑布", "info": "從中間岩石起攀", "type": "light" },
+        { "time": "10:41", "location": "豬槽潭瀑布", "info": "離開豬槽潭", "type": "light" },
+        { "time": "10:52", "location": "豬槽潭瀑布上方小潭", "info": "通過小潭，沿小瀑往上爬", "type": "light" },
+        { "time": "10:56", "location": "途中", "info": "隊伍因拍照走慢，嚮導表示不滿意", "type": "light" },
+        { "time": "11:38", "location": "主支流岔路", "info": "疑似經過不明顯的主支流岔路", "type": "light" },
+        { "time": "11:45", "location": "SPA 池", "info": "落差約 2 米多的小潭，於小砂洲休息", "type": "light" },
+        { "time": "12:00", "location": "SPA 池", "info": "繼續往上出發", "type": "light" },
+        { "time": "12:20", "location": "老梅瀑布", "info": "抵達；沿途遇見蛙類、螃蟹及虎頭蜂群", "type": "light" },
+        { "time": "12:25", "location": "老梅瀑布", "info": "從瀑布右側攀岩而上", "type": "light" },
+        { "time": "13:14", "location": "老梅瀑布上方", "info": "玩水後決定進行垂瀑並開始架繩", "type": "light" },
+        { "time": "14:54", "location": "老梅瀑布上方", "info": "全員抵達瀑布上方，水溫變冰冷", "type": "light" },
+        { "time": "15:18", "location": "老梅冷泉", "info": "抵達，有濃厚的礦物味道", "type": "light" },
+        { "time": "15:34", "location": "老梅冷泉", "info": "從冷泉口離開進入山徑", "type": "light" },
+        { "time": "15:39", "location": "山徑", "info": "決議不去青山瀑布", "type": "light" },
+        { "time": "15:58", "location": "青山瀑布傳統路線", "info": "走在傳統路線，路跡明顯", "type": "light" },
+        { "time": "16:03", "location": "大眾步道", "info": "走出傳統路線接回大眾步道", "type": "light" },
+        { "time": "16:20", "location": "青山瀑布登山口", "info": "全員抵達，平安完成行程", "type": "light" }
       ]
     }
   ]

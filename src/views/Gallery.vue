@@ -7,21 +7,39 @@
 
     <main class="container">
       <div class="filter-section">
-        <label for="semester-select">選擇學期：</label>
-        <select id="semester-select" v-model="selectedSemester">
-          <option value="all">全部顯示</option>
-          <option v-for="sem in availableSemesters" :key="sem" :value="sem">{{ sem }}</option>
-        </select>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="搜尋隊伍名稱..." 
+          class="search-input"
+        />
+        <div class="semester-filter">
+          <label for="semester-select">選擇學期：</label>
+          <select id="semester-select" v-model="selectedSemester">
+            <option value="all">全部顯示</option>
+            <option v-for="sem in availableSemesters" :key="sem" :value="sem">{{ sem }}</option>
+          </select>
+        </div>
       </div>
       
       <LoadingOverlay v-if="isLoading" text="探索山林中..." />
+
+      <div v-else-if="errorMsg" class="error-banner">
+        <p>⚠️ {{ errorMsg }}</p>
+        <button class="btn-retry" @click="$router.go(0)">重新載入</button>
+      </div>
         
       <div class="trip-grid" v-else> 
+        <div v-if="filteredTrips.length === 0" class="no-results">
+          <p>找不到符合條件的隊伍</p>
+        </div>
         <router-link 
-          v-for="trip in filteredTrips" 
+          v-for="(trip, idx) in filteredTrips" 
           :key="trip.id"
           :to="{ name: 'TripDetail', query: { id: trip.id } }" 
           class="trip-card"
+          data-aos="fade-up"
+          :data-aos-delay="(idx % 4) * 100"
         >
           <div class="card-img" :style="{ backgroundImage: `url(${trip.coverImage || defaultImg})` }"></div>
           
@@ -42,10 +60,14 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 
+defineOptions({ name: 'Gallery' });
+
 // --- 狀態控制 ---
 const trips = ref([]);
 const isLoading = ref(true);
+const errorMsg = ref('');
 const selectedSemester = ref('all');
+const searchQuery = ref('');
 // 如果 Firebase 沒傳圖片，就用這張預設的山景圖
 const defaultImg = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80';
 
@@ -57,8 +79,15 @@ const availableSemesters = computed(() => {
 
 // --- 篩選後的隊伍列表 ---
 const filteredTrips = computed(() => {
-  if (selectedSemester.value === 'all') return trips.value;
-  return trips.value.filter(t => t.semester === selectedSemester.value);
+  let result = trips.value;
+  if (selectedSemester.value !== 'all') {
+    result = result.filter(t => t.semester === selectedSemester.value);
+  }
+  const q = searchQuery.value.trim().toLowerCase();
+  if (q) {
+    result = result.filter(t => t.title?.toLowerCase().includes(q));
+  }
+  return result;
 });
 
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
@@ -93,6 +122,7 @@ onMounted(async () => {
     
   } catch (error) {
     console.error("抓取列表失敗:", error);
+    errorMsg.value = '載入失敗，請檢查網路連線後重新整理';
   } finally {
     // 稍等動畫跑一下再顯示畫面
     setTimeout(() => {
@@ -115,28 +145,54 @@ onMounted(async () => {
 }
 /* 頂部標題區塊 */
 .page-header {
+  background: linear-gradient(rgba(26, 67, 45, 0.8), rgba(26, 67, 45, 0.8)), url('https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2070');
+  background-size: cover;
+  background-position: center;
   text-align: center;
-  padding: 50px 20px;
-  background-color: #f4f8f5;
+  padding: 60px 20px;
   margin-bottom: 40px;
-  border-bottom: 1px solid #eaeaea;
+  color: white;
 }
 
 .page-header h1 {
-  color: #1A432D;
-  font-size: 2.2rem;
+  font-size: 2.5rem;
   margin-bottom: 10px;
+  letter-spacing: 2px;
 }
 
 .page-header p {
-  color: #666;
   font-size: 1.1rem;
+  opacity: 0.9;
 }
 
 /* 篩選器樣式 */
 .filter-section {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
   margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  padding: 9px 16px;
+  font-size: 1rem;
+  border: 2px solid #1A432D;
+  border-radius: 8px;
+  width: 240px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input:focus {
+  border-color: #E2C044;
+  box-shadow: 0 0 0 3px rgba(226, 192, 68, 0.25);
+}
+.search-input::placeholder {
+  color: #aaa;
+}
+
+.semester-filter {
   font-size: 1.1rem;
   color: #333;
 }
@@ -152,7 +208,14 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-/* 🌟 卡片網格排版 (這是變美的關鍵) */
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 1.1rem;
+}
+
 /* 🌟 卡片網格排版 (固定四排與響應式) */
 .trip-grid {
   display: grid;
