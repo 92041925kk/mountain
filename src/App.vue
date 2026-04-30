@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <Navbar />
+    <Navbar v-if="!isAdminRoute" />
     <div class="page-content">
       <router-view v-slot="{ Component }">
         <Transition name="page-fade" mode="out-in">
@@ -10,13 +10,18 @@
         </Transition>
       </router-view>
     </div>
-    <Footer />
+    <Footer v-if="!isAdminRoute" />
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
+
+const route = useRoute()
+const isAdminRoute = computed(() => route.meta.isAdmin === true)
 </script>
 
 <style>

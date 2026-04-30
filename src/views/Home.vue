@@ -26,6 +26,39 @@
           </p>
         </section>
 
+        <!-- 照片牆區塊 -->
+        <section class="photo-wall-section" v-if="photos.length > 0" data-aos="fade-up">
+          <h2>山林回憶</h2>
+          <div class="divider"></div>
+          <Transition name="photo-fade" mode="out-in">
+            <div class="photo-grid" :key="currentPage">
+              <div
+                v-for="(photo, idx) in displayedPhotos"
+                :key="idx"
+                class="photo-item"
+                @click="openLightboxByUrl(photo.url)"
+              >
+                <img :src="photo.url" :alt="photo.caption || '山社照片'" loading="lazy" @load="e => e.target.classList.add('loaded')" />
+                <div class="photo-overlay" v-if="photo.caption"><span>{{ photo.caption }}</span></div>
+              </div>
+            </div>
+          </Transition>
+          <div class="view-all">
+            <router-link to="/gallery" class="btn-outline">查看更多照片 →</router-link>
+          </div>
+        </section>
+
+        <!-- Lightbox -->
+        <Teleport to="body">
+          <div class="lightbox" v-if="lightboxIndex !== null" @click.self="closeLightbox">
+            <button class="lightbox-close" @click="closeLightbox">✕</button>
+            <button class="lightbox-prev" @click="lightboxPrev" v-if="photos.length > 1">&#8249;</button>
+            <img :src="photos[lightboxIndex].url" :alt="photos[lightboxIndex].caption || '山社照片'" />
+            <p class="lightbox-caption" v-if="photos[lightboxIndex].caption">{{ photos[lightboxIndex].caption }}</p>
+            <button class="lightbox-next" @click="lightboxNext" v-if="photos.length > 1">&#8250;</button>
+          </div>
+        </Teleport>
+
         <section class="recent-trips-section" v-if="upcomingTrips.length > 0" data-aos="fade-up">
           <h2>即將出發</h2>
           <div class="divider"></div>
@@ -60,8 +93,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { doc, getDoc } from 'firebase/firestore';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { doc, getDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 
@@ -70,6 +103,34 @@ defineOptions({ name: 'Home' });
 const isLoading = ref(true);
 const errorMsg = ref('');
 const upcomingTrips = ref([]);
+const photos = ref([]);
+const lightboxIndex = ref(null);
+const currentPage = ref(0);
+let rotateTimer = null;
+
+// 每次顯示 6 張，用 modulo 讓圖片序列循環
+const displayedPhotos = computed(() => {
+  const total = photos.value.length;
+  if (total === 0) return [];
+  return Array.from({ length: 6 }, (_, i) =>
+    photos.value[(currentPage.value * 6 + i) % total]
+  );
+});
+
+function openLightbox(idx) { lightboxIndex.value = idx; }
+function openLightboxByUrl(url) {
+  const idx = photos.value.findIndex(p => p.url === url);
+  if (idx !== -1) lightboxIndex.value = idx;
+}
+function closeLightbox() { lightboxIndex.value = null; }
+function lightboxPrev() {
+  lightboxIndex.value = (lightboxIndex.value - 1 + photos.value.length) % photos.value.length;
+}
+function lightboxNext() {
+  lightboxIndex.value = (lightboxIndex.value + 1) % photos.value.length;
+}
+
+onUnmounted(() => { if (rotateTimer) clearInterval(rotateTimer); });
 
 // 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成今年的 Date
 function parseScheduleDate(dateStr) {
@@ -103,6 +164,21 @@ onMounted(async () => {
       });
 
       upcomingTrips.value = upcoming.slice(0, 3);
+    }
+    // 載入照片牆（最多 24 張，不足時輪迴補齊）
+    try {
+      const q = query(collection(db, 'photos'), orderBy('uploadedAt', 'desc'), limit(24));
+      const snap = await getDocs(q);
+      const raw = snap.docs.map(d => d.data());
+      if (raw.length > 0) {
+        let filled = [...raw];
+        while (filled.length < 24) filled = [...filled, ...raw];
+        photos.value = filled.slice(0, 24);
+        // 每 6 秒切換下一批
+        rotateTimer = setInterval(() => { currentPage.value++; }, 6000);
+      }
+    } catch (e) {
+      console.warn('照片牆載入失敗:', e);
     }
   } catch (e) {
     console.error('首頁載入即將出發隊伍失敗:', e);
@@ -302,5 +378,146 @@ onMounted(async () => {
 
 @media (max-width: 900px) {
   .recent-trips-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 照片牆 */
+.photo-wall-section {
+  text-align: center;
+  padding: 0 20px 80px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.photo-wall-section h2 {
+  color: #1A432D;
+  font-size: 2rem;
+  margin-bottom: 15px;
+}
+
+/* Marquee 跑馬燈 */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.photo-item {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  display: block;
+  opacity: 0;
+}
+.photo-item img.loaded {
+  opacity: 1;
+}
+
+.photo-item:hover img {
+  transform: scale(1.06);
+}
+
+.photo-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.6));
+  color: white;
+  padding: 20px 12px 12px;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.photo-item:hover .photo-overlay {
+  opacity: 1;
+}
+
+/* 照片淡入淡出切換 */
+.photo-fade-enter-active,
+.photo-fade-leave-active {
+  transition: opacity 0.8s ease;
+}
+.photo-fade-enter-from,
+.photo-fade-leave-to {
+  opacity: 0;
+}
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.lightbox img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.lightbox-caption {
+  color: rgba(255,255,255,0.8);
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 28px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.lightbox-prev,
+.lightbox-next {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  font-size: 3rem;
+  cursor: pointer;
+  padding: 10px 18px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.2s;
+}
+
+.lightbox-prev { left: 16px; }
+.lightbox-next { right: 16px; }
+
+.lightbox-prev:hover,
+.lightbox-next:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+@media (max-width: 600px) {
+  .photo-grid { grid-template-columns: repeat(2, 1fr); }
+  .lightbox-prev { left: 4px; }
+  .lightbox-next { right: 4px; }
 }
 </style>
