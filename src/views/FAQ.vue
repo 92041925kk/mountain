@@ -1,9 +1,6 @@
 <template>
   <div class="faq-page">
-    <header class="page-header">
-      <h1>常見問題</h1>
-      <p>新手必看！關於登山社你想知道的一切</p>
-    </header>
+    <PageHeader title="常見問題" subtitle="新手必看！關於登山社你想知道的一切" />
 
     <main class="container">
       <div class="faq-list">
@@ -36,6 +33,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import PageHeader from '../components/PageHeader.vue';
 
 defineOptions({ name: 'FAQ' });
 
@@ -84,25 +82,6 @@ const faqs = [
 <style scoped>
 .faq-page {
   padding-bottom: 80px;
-}
-
-.page-header {
-  background: linear-gradient(rgba(26, 67, 45, 0.8), rgba(26, 67, 45, 0.8)), url('https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2070');
-  background-size: cover;
-  background-position: center;
-  text-align: center;
-  padding: 60px 20px;
-  margin-bottom: 40px;
-  color: white;
-}
-.page-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-  letter-spacing: 2px;
-}
-.page-header p {
-  font-size: 1.1rem;
-  opacity: 0.9;
 }
 
 .container {
@@ -192,13 +171,6 @@ const faqs = [
 }
 
 @media (max-width: 600px) {
-  .page-header {
-    padding: 35px 16px;
-    margin-bottom: 24px;
-  }
-  .page-header h1 {
-    font-size: 1.6rem;
-  }
   .faq-question {
     font-size: 0.97rem;
     padding: 15px 16px;

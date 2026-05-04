@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isPublicCollection(collectionName) {
+      return collectionName in ['schedules', 'trip', 'photos', 'settings'];
+    }
+
+    match /{collectionName}/{documentId} {
+      allow read: if isPublicCollection(collectionName);
+      allow write: if isPublicCollection(collectionName) && isSignedIn();
+    }
+
+    match /admins/{uid} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

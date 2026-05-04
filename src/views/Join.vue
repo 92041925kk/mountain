@@ -1,9 +1,6 @@
 <template>
   <div class="join-page">
-      <header class="page-header">
-        <h1>加入山社</h1>
-        <p>成為我們的一份子，開啟你的高山旅程</p>
-      </header>
+      <PageHeader title="加入山社" subtitle="成為我們的一份子，開啟你的高山旅程" />
 
       <main class="container">
         <section class="join-content">
@@ -12,6 +9,34 @@
           <div class="info-card">
             <p><strong>📍 地點：</strong> 活動中心 304</p>
             <p><strong>💰 社費：</strong> 650 元（加入後終身是社員）</p>
+          </div>
+
+          <h2>新手路線</h2>
+          <div class="starter-path">
+            <article class="starter-step">
+              <span>1</span>
+              <h3>先認識山社</h3>
+              <p>看看常見問題，確認裝備、體能、安全與報名方式。</p>
+              <router-link to="/faq">查看 FAQ</router-link>
+            </article>
+            <article class="starter-step">
+              <span>2</span>
+              <h3>加入社群</h3>
+              <p>進 LINE 群組或追蹤社群，活動公告和社課資訊都會在這裡出現。</p>
+              <a href="https://line.me/ti/g/ISvx7KmvOg" target="_blank" rel="noopener noreferrer">加入 LINE</a>
+            </article>
+            <article class="starter-step">
+              <span>3</span>
+              <h3>從社課開始</h3>
+              <p>先參加社課或初嚮，熟悉隊伍節奏、裝備整理與基本山野觀念。</p>
+              <router-link to="/schedule">看近期活動</router-link>
+            </article>
+            <article class="starter-step">
+              <span>4</span>
+              <h3>一起出隊</h3>
+              <p>報名前確認時間、裝備與隊伍需求，再跟著大家走進山裡。</p>
+              <router-link to="/gallery">看隊伍回顧</router-link>
+            </article>
           </div>
 
           <h2>追蹤我們</h2>
@@ -42,6 +67,8 @@
 </template>
 
 <script setup>
+import PageHeader from '../components/PageHeader.vue';
+
 defineOptions({ name: 'Join' });
 </script>
 
@@ -52,31 +79,9 @@ defineOptions({ name: 'Join' });
   background-color: #f0f5f1;
 }
 
-/* 頂部標題區塊 (與其他頁面保持一致風格) */
-.page-header {
-  background: linear-gradient(rgba(26, 67, 45, 0.8), rgba(26, 67, 45, 0.8)), url('https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2070');
-  background-size: cover;
-  background-position: center;
-  text-align: center;
-  padding: 60px 20px;
-  margin-bottom: 40px;
-  color: white;
-}
-
-.page-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-  letter-spacing: 2px;
-}
-
-.page-header p {
-  font-size: 1.1rem;
-  opacity: 0.9;
-}
-
 /* 主要內容卡片 */
 .join-content {
-  max-width: 600px; /* 限制寬度讓畫面更集中、更好看 */
+  max-width: 900px; /* 限制寬度讓畫面更集中、更好看 */
   margin: 0 auto;
   background: white;
   padding: 40px;
@@ -147,6 +152,63 @@ defineOptions({ name: 'Join' });
   font-size: 1.1rem;
 }
 
+.starter-path {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 35px;
+  text-align: left;
+}
+
+.starter-step {
+  position: relative;
+  border: 1px solid #e0e8e2;
+  border-left: 4px solid #E2C044;
+  border-radius: 8px;
+  padding: 18px 18px 18px 58px;
+  background: #fbfdfc;
+}
+
+.starter-step span {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1A432D;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.starter-step h3 {
+  margin: 0 0 6px;
+  color: #1A432D;
+  font-size: 1rem;
+}
+
+.starter-step p {
+  margin: 0 0 12px;
+  color: #555;
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.starter-step a {
+  color: #1A432D;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+  border-bottom: 2px solid #E2C044;
+}
+
+.starter-step a:hover {
+  color: #a67b25;
+}
+
 /* 報名行動區塊 */
 .action-area {
   margin-top: 20px;
@@ -181,16 +243,6 @@ defineOptions({ name: 'Join' });
 }
 
 @media (max-width: 600px) {
-  .page-header {
-    padding: 35px 16px;
-    margin-bottom: 24px;
-  }
-  .page-header h1 {
-    font-size: 1.6rem;
-  }
-  .page-header p {
-    font-size: 0.95rem;
-  }
   .join-content {
     padding: 24px 18px;
     margin: 0 8px;
@@ -213,6 +265,9 @@ defineOptions({ name: 'Join' });
   .social-btn {
     width: 200px;
     justify-content: center;
+  }
+  .starter-path {
+    grid-template-columns: 1fr;
   }
   .join-page {
     padding-bottom: 50px;

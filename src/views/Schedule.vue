@@ -9,12 +9,11 @@
     </div>
 
     <template v-if="!isLoading && !errorMsg">
-      <header class="page-header">
-        <div class="container">
-          <h1>{{ scheduleData.title || '學期行事曆' }}</h1>
-          <p>一步一腳印，開啟本學期的冒險旅程</p>
-        </div>
-      </header>
+      <PageHeader
+        :title="scheduleData.title || '學期行事曆'"
+        subtitle="一步一腳印，開啟本學期的冒險旅程"
+        :image="siteSettings.defaultPageHeaderImage"
+      />
 
       <main class="container">
         <div class="schedule-list">
@@ -37,13 +36,13 @@
               
               <div class="info-side">
                 <div class="title-with-icon">
-                  <h3>{{ item.title }}</h3>
+                  <h3 :class="getTitleLengthClass(item.title)">{{ item.title }}</h3>
                   
-                  <a 
-                    v-if="item.facebook_url" 
-                    :href="item.facebook_url" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <a
+                    v-if="isValidFacebookUrl(item.facebook_url)"
+                    :href="item.facebook_url.trim()"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     class="fb-link"
                     @click.stop
                   >
@@ -61,7 +60,7 @@
 
             <div class="card-body" v-show="activeIndex === index">
               <div class="description-content">
-                <p>{{ item.description || '目前還沒有隊伍簡介喔！快點擊 FB 連結了解更多。' }}</p>
+                <p>{{ item.description || '目前還沒有隊伍簡介喔！請留意社課或社群公告。' }}</p>
               </div>
             </div>
           </div>
@@ -82,29 +81,47 @@ import { doc, getDoc } from "firebase/firestore";
 defineOptions({ name: 'Schedule' });
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
+import PageHeader from '../components/PageHeader.vue';
+import { preloadImages } from '../utils/preloadImages';
+import { defaultSiteSettings, getSiteSettings } from '../utils/siteSettings';
 
 // --- 狀態控制 ---
 const scheduleData = ref({ items: [] });
 const isLoading = ref(true);
 const errorMsg = ref('');
 const activeIndex = ref(null); 
+const siteSettings = ref({ ...defaultSiteSettings });
+
+function getTitleLengthClass(title) {
+  const length = Array.from(String(title || '')).length;
+  return {
+    'is-long-title': length >= 15,
+    'is-extra-long-title': length >= 22,
+  };
+}
 
 // --- 切換下拉功能 ---
 const toggleDropdown = (index) => {
   activeIndex.value = activeIndex.value === index ? null : index;
 };
 
+function isValidFacebookUrl(url) {
+  return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
+}
+
 // --- 初始化抓取資料 ---
 onMounted(async () => {
   try {
+    siteSettings.value = await getSiteSettings();
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('連線逾時')), 8000)
     );
-    const docRef = doc(db, "schedules", "114-2"); 
+    const docRef = doc(db, "schedules", siteSettings.value.currentSemester);
     const docSnap = await Promise.race([getDoc(docRef), timeout]);
     if (docSnap.exists()) {
       scheduleData.value = docSnap.data();
     }
+    await preloadImages([siteSettings.value.defaultPageHeaderImage], { timeoutMs: 8000 });
   } catch (error) {
     console.error("Firebase 連線錯誤:", error);
     errorMsg.value = '載入失敗，請檢查網路連線後重新整理';
@@ -121,14 +138,6 @@ onMounted(async () => {
 
 /* 1. 基本頁面樣式 */
 .schedule-page { padding-bottom: 80px; } 
-
-/* 2. 標題區 */
-.page-header {
-  background: linear-gradient(rgba(26, 67, 45, 0.8), rgba(26, 67, 45, 0.8)), url('https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2070');
-  background-size: cover; background-position: center;
-  color: white; text-align: center; padding: 60px 20px; margin-bottom: 40px;
-}
-.page-header h1 { font-size: 2.5rem; margin-bottom: 10px; letter-spacing: 2px; }
 
 /* 3. 卡片網格與樣式 */
 .schedule-list { display: flex; flex-direction: column; gap: 20px; }
@@ -157,14 +166,14 @@ onMounted(async () => {
   font-weight: bold; font-size: 1.2rem; padding: 20px; text-align: center;
 }
 
-.info-side { padding: 25px 20px; display: flex; align-items: center; flex: 1; }
+.info-side { padding: 25px 20px; display: flex; align-items: center; flex: 1; min-width: 0; }
 
 .title-with-icon {
   display: flex; align-items: center; justify-content: space-between;
-  width: 100%; min-height: 32px;
+  width: 100%; min-height: 32px; min-width: 0;
 }
 
-.info-side h3 { margin: 0; color: #333; font-size: 1.3rem; }
+.info-side h3 { margin: 0; color: #333; font-size: 1.3rem; min-width: 0; }
 
 /* 5. 互動元素 */
 .fb-link { display: flex; align-items: center; transition: transform 0.2s; }
@@ -199,7 +208,16 @@ onMounted(async () => {
 @media (max-width: 600px) {
   .card-header { flex-direction: column; }
   .date-side { width: 100%; padding: 15px; }
-  .info-side { text-align: center; }
-  .title-with-icon { justify-content: center; gap: 15px; }
+  .info-side { width: 100%; padding: 24px 10px; text-align: center; }
+  .title-with-icon { justify-content: center; gap: 8px; }
+  .info-side h3 {
+    flex: 0 1 auto;
+    white-space: nowrap;
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+  .info-side h3.is-long-title { font-size: 0.88rem; }
+  .info-side h3.is-extra-long-title { font-size: 0.78rem; }
+  .fb-link { flex: 0 0 auto; }
 }
 </style>

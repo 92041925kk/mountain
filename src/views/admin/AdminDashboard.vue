@@ -25,17 +25,19 @@
           <p>新增或編輯各次出隊的詳細時間線</p>
           <router-link to="/cymc-admin/trips" class="btn-card">進入管理</router-link>
         </div>
+        <div class="admin-card">
+          <div class="card-icon">⚙️</div>
+          <h3>網站設定</h3>
+          <p>調整目前學期、首頁封面與網站分享摘要</p>
+          <router-link to="/cymc-admin/settings" class="btn-card">進入管理</router-link>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
-
-const router = useRouter();
 </script>
 
 <style scoped>
@@ -61,11 +63,7 @@ const router = useRouter();
   margin-bottom: 36px;
 }
 
-.admin-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
+.admin-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
 
 .admin-card {
   background: white;
@@ -111,5 +109,9 @@ const router = useRouter();
 
 @media (max-width: 700px) {
   .admin-cards { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 701px) and (max-width: 980px) {
+  .admin-cards { grid-template-columns: repeat(2, 1fr); }
 }
 </style>

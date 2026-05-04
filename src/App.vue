@@ -4,7 +4,7 @@
     <div class="page-content">
       <router-view v-slot="{ Component }">
         <Transition name="page-fade" mode="out-in">
-          <KeepAlive :include="['Home', 'Gallery', 'Schedule', 'History', 'Join', 'FAQ']">
+          <KeepAlive :include="['History', 'Join', 'FAQ']">
             <component :is="Component" />
           </KeepAlive>
         </Transition>

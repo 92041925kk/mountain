@@ -8,7 +8,7 @@
       </div>
       <div class="admin-user">
         <span class="user-email">{{ userEmail }}</span>
-        <router-link to="/" class="btn-home" target="_blank">回到首頁</router-link>
+        <router-link to="/" class="btn-home">回到首頁</router-link>
         <button class="btn-logout" @click="handleLogout">登出</button>
       </div>
     </div>

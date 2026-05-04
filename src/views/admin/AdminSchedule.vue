@@ -12,7 +12,7 @@
           <button class="btn-primary" @click="loadSchedule" :disabled="!semester.trim() || isFetching">
             {{ isFetching ? '載入中...' : '載入' }}
           </button>
-          <button class="btn-secondary" v-if="isLoaded" @click="createNew">新增學期</button>
+          <button class="btn-secondary" v-if="canCreateNew" @click="createNew">建立新學期</button>
         </div>
         <p class="hint-text" v-if="statusMsg" :class="statusClass">{{ statusMsg }}</p>
       </section>
@@ -74,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
@@ -87,6 +87,10 @@ const isFetching = ref(false);
 const isSaving = ref(false);
 const statusMsg = ref('');
 const statusClass = ref('');
+const missingSemester = ref('');
+const canCreateNew = computed(() =>
+  missingSemester.value === semester.value.trim() && !isLoaded.value && !isFetching.value
+);
 
 function setStatus(msg, ok = true) {
   statusMsg.value = msg;
@@ -98,6 +102,7 @@ async function loadSchedule() {
   if (!semester.value.trim()) return;
   isFetching.value = true;
   isLoaded.value = false;
+  missingSemester.value = '';
   try {
     const snap = await getDoc(doc(db, 'schedules', semester.value.trim()));
     if (snap.exists()) {
@@ -107,6 +112,7 @@ async function loadSchedule() {
       isLoaded.value = true;
       setStatus(`已載入 ${items.value.length} 筆行程`);
     } else {
+      missingSemester.value = semester.value.trim();
       setStatus('找不到此學期，可新增一個新學期', false);
       isLoaded.value = false;
     }
@@ -121,6 +127,7 @@ function createNew() {
   scheduleTitle.value = `${semester.value.trim()} 行事曆`;
   items.value = [];
   isLoaded.value = true;
+  missingSemester.value = '';
   statusMsg.value = '';
 }
 
@@ -139,9 +146,13 @@ async function saveSchedule() {
 
   // 清理空欄位
   const cleanItems = items.value
-    .filter(i => i.date || i.title)
+    .filter(i => i.date?.trim() || i.title?.trim())
     .map(i => {
-      const obj = { date: i.date, title: i.title, facebook_url: i.facebook_url || '無' };
+      const obj = {
+        date: i.date?.trim() || '',
+        title: i.title?.trim() || '',
+        facebook_url: i.facebook_url?.trim() || '無',
+      };
       if (i.description?.trim()) obj.description = i.description.trim();
       return obj;
     });

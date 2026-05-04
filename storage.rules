@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 15 * 1024 * 1024;
+    }
+
+    match /photos/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isSignedIn() && isImage();
+      allow delete: if isSignedIn();
+    }
+
+    match /trip-covers/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isSignedIn() && isImage();
+      allow delete: if isSignedIn();
+    }
+
+    match /gpx/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

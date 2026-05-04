@@ -82,6 +82,7 @@ async function run() {
       // 寫入 Firestore photos collection
       await db.collection('photos').add({
         url,
+        storagePath: destination,
         tripId: TRIP_ID || null,
         caption: CAPTION_PREFIX ? `${CAPTION_PREFIX} - ${path.basename(fileName, path.extname(fileName))}` : '',
         uploadedAt: admin.firestore.FieldValue.serverTimestamp(),

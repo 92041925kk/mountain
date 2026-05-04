@@ -21,6 +21,9 @@
             <div class="trip-meta">
               <span class="trip-title">{{ trip.title }}</span>
               <div class="trip-tags">
+                <span class="tag" :class="trip.status === 'draft' ? 'tag-draft' : 'tag-published'">
+                  {{ trip.status === 'draft' ? '草稿' : '已發布' }}
+                </span>
                 <span class="tag">{{ trip.semester }}</span>
                 <span class="tag">{{ trip.days }}</span>
                 <span class="tag tag-diff">{{ trip.difficulty }}</span>
@@ -41,12 +44,27 @@
         <div class="form-grid">
           <div class="field-row">
             <label>行程 ID <span class="required">*</span></label>
-            <input v-model="form.id" placeholder="例：laomei-creek-2026" :disabled="!!editingId" />
-            <span class="field-hint">英文小寫 + 數字 + 連字號，建立後不可更改</span>
+            <div class="id-row">
+              <input
+                :value="form.id"
+                placeholder="系統會自動產生"
+                :disabled="!!editingId"
+                @input="onTripIdInput"
+              />
+              <button
+                v-if="!editingId"
+                class="btn-secondary"
+                type="button"
+                @click="regenerateTripId"
+              >
+                自動產生
+              </button>
+            </div>
+            <span class="field-hint">新增時會自動產生；建立後不可更改。</span>
           </div>
           <div class="field-row">
             <label>行程名稱 <span class="required">*</span></label>
-            <input v-model="form.title" placeholder="例：老梅溪溯溪 - 梅好溯光" />
+            <input :value="form.title" placeholder="例：老梅溪溯溪 - 梅好溯光" @input="onTripTitleInput" />
           </div>
           <div class="field-row">
             <label>學期</label>
@@ -60,23 +78,194 @@
             <label>難度 / 類型</label>
             <input v-model="form.difficulty" placeholder="例：溯溪體驗、百岳縱走" />
           </div>
+          <div class="field-row">
+            <label>發布狀態</label>
+            <select v-model="form.status">
+              <option value="draft">草稿，不顯示在前台</option>
+              <option value="published">發布，顯示在前台</option>
+            </select>
+            <span class="field-hint">新增行程預設為草稿，確認內容後再發布。</span>
+          </div>
           <div class="field-row full-width">
             <label>封面圖片 URL</label>
             <input v-model="form.coverImage" placeholder="https://..." />
             <img v-if="form.coverImage" :src="form.coverImage" class="cover-preview" />
+            <div class="cover-upload" v-if="editingId">
+              <input type="file" accept="image/*" @change="onCoverFileChange" />
+              <button class="btn-secondary" @click="uploadCoverImage" :disabled="!coverFile || isUploadingCover">
+                {{ isUploadingCover ? '上傳中...' : '上傳封面到 Storage' }}
+              </button>
+            </div>
+            <span class="field-hint" v-else>先建立行程回顧後，就可以直接上傳 Storage 封面。</span>
+            <span class="field-hint" v-if="coverStatus" :class="coverStatusClass">{{ coverStatus }}</span>
           </div>
           <div class="field-row full-width">
-            <label>行程計畫（JSON）<span class="required">*</span></label>
-            <textarea
-              v-model="planJson"
-              rows="18"
-              spellcheck="false"
-              class="json-editor"
-              placeholder='[{"dayLabel":"D1 (9/24)","items":[{"time":"08:40","location":"集合地點","info":"說明","type":"light"}]}]'
-            ></textarea>
-            <span class="field-hint json-hint" :class="jsonValid ? 'hint-ok' : 'hint-err'">
-              {{ jsonValid ? '✅ JSON 格式正確' : '❌ JSON 格式錯誤，請修正後再儲存' }}
-            </span>
+            <label>天氣資訊</label>
+            <div class="weather-editor">
+              <div class="weather-grid">
+                <div class="field-row">
+                  <label>天氣摘要</label>
+                  <input v-model="form.weather.summary" placeholder="例：多雲午後短暫陣雨" />
+                </div>
+                <div class="field-row">
+                  <label>溫度</label>
+                  <input v-model="form.weather.temperature" placeholder="例：18-24°C" />
+                </div>
+                <div class="field-row">
+                  <label>降雨機率 / 雨況</label>
+                  <input v-model="form.weather.rainChance" placeholder="例：40%，溪谷水量穩定" />
+                </div>
+                <div class="field-row">
+                  <label>風況</label>
+                  <input v-model="form.weather.wind" placeholder="例：稜線風偏強" />
+                </div>
+                <div class="field-row">
+                  <label>資料來源</label>
+                  <input v-model="form.weather.source" placeholder="例：中央氣象署、領隊紀錄" />
+                </div>
+                <div class="field-row">
+                  <label>更新日期</label>
+                  <input v-model="form.weather.updatedAt" placeholder="例：2026-05-04" />
+                </div>
+                <div class="field-row full-width">
+                  <label>補充說明</label>
+                  <textarea v-model="form.weather.note" rows="3" placeholder="例：出發前一週留意午後雷陣雨，實際行程中午後雲量增加。"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field-row full-width">
+            <label>活動記錄紙 PDF</label>
+            <div class="record-import-box">
+              <div class="record-upload-row">
+                <input
+                  ref="recordFileInputRef"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  @change="onActivityRecordFileChange"
+                  :disabled="isParsingRecord"
+                />
+                <button
+                  v-if="activityRecordPreview"
+                  class="btn-secondary"
+                  type="button"
+                  @click="clearActivityRecordImport"
+                  :disabled="isParsingRecord"
+                >
+                  清除匯入
+                </button>
+              </div>
+              <span class="field-hint">上傳活動記錄紙後，系統會自動轉成下方表格；套用前可調整每天的輕裝或重裝。</span>
+              <p class="status-msg record-status" v-if="activityRecordStatus" :class="activityRecordStatusClass">
+                {{ activityRecordStatus }}
+              </p>
+
+              <div class="record-preview" v-if="activityRecordPreview">
+                <div class="record-summary">
+                  <strong>{{ activityRecordPreview.activityName || '未辨識活動名稱' }}</strong>
+                  <span v-if="activityRecordPreview.dateRange">{{ activityRecordPreview.dateRange }}</span>
+                  <span>{{ activityRecordPreview.itemCount }} 筆紀錄</span>
+                </div>
+
+                <ul class="record-warnings" v-if="activityRecordPreview.warnings.length">
+                  <li v-for="warning in activityRecordPreview.warnings" :key="warning">{{ warning }}</li>
+                </ul>
+
+                <div class="record-days">
+                  <div class="record-day" v-for="(day, dayIndex) in activityRecordPreview.plan" :key="day.dayLabel">
+                    <div class="record-day-header">
+                      <strong>{{ day.dayLabel }}</strong>
+                      <label>
+                        行走類型
+                        <select
+                          v-model="activityRecordDayTypes[dayIndex]"
+                          @change="setActivityRecordDayType(dayIndex, activityRecordDayTypes[dayIndex])"
+                        >
+                          <option value="heavy">重裝</option>
+                          <option value="light">輕裝</option>
+                        </select>
+                      </label>
+                    </div>
+                    <ul class="record-items">
+                      <li v-for="item in day.items.slice(0, 5)" :key="`${day.dayLabel}-${item.time}-${item.location}`">
+                        <span class="record-time">{{ item.time }}</span>
+                        <span class="record-place">{{ item.location }}</span>
+                        <span class="record-type" :class="`record-type-${item.type}`">{{ movementTypeLabel(item.type) }}</span>
+                      </li>
+                      <li v-if="day.items.length > 5" class="record-more">還有 {{ day.items.length - 5 }} 筆...</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="record-actions">
+                  <button class="btn-primary" type="button" @click="applyActivityRecordToForm">
+                    套用到行程計畫
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field-row full-width">
+            <label>行程計畫 <span class="required">*</span></label>
+            <div class="plan-editor">
+              <div class="plan-toolbar">
+                <span>{{ planSummary }}</span>
+                <button class="btn-secondary" type="button" @click="addPlanDay">新增一天</button>
+              </div>
+
+              <div v-for="(day, dayIndex) in planDays" :key="dayIndex" class="plan-day-editor">
+                <div class="plan-day-header">
+                  <input v-model="day.dayLabel" aria-label="日期標籤" placeholder="例：D1 (9/24)" />
+                  <div class="plan-day-actions">
+                    <button class="btn-secondary" type="button" @click="movePlanDay(dayIndex, -1)" :disabled="dayIndex === 0">上移</button>
+                    <button class="btn-secondary" type="button" @click="movePlanDay(dayIndex, 1)" :disabled="dayIndex === planDays.length - 1">下移</button>
+                    <button class="btn-secondary" type="button" @click="addPlanItem(dayIndex)">新增節點</button>
+                    <button class="btn-del" type="button" @click="removePlanDay(dayIndex)" :disabled="planDays.length === 1">刪除這天</button>
+                  </div>
+                </div>
+
+                <div class="plan-table">
+                  <div class="plan-table-head">
+                    <span>時間</span>
+                    <span>地點</span>
+                    <span>備註</span>
+                    <span>類型</span>
+                    <span>操作</span>
+                  </div>
+                  <div v-for="(item, itemIndex) in day.items" :key="itemIndex" class="plan-row">
+                    <input v-model="item.time" placeholder="08:40" />
+                    <input v-model="item.location" placeholder="集合地點" />
+                    <input v-model="item.info" placeholder="說明，可留空" />
+                    <select v-model="item.type">
+                      <option value="ride">搭車</option>
+                      <option value="heavy">重裝</option>
+                      <option value="light">輕裝</option>
+                    </select>
+                    <div class="row-actions">
+                      <button class="btn-icon" type="button" @click="movePlanItem(dayIndex, itemIndex, -1)" :disabled="itemIndex === 0" title="上移">↑</button>
+                      <button class="btn-icon" type="button" @click="movePlanItem(dayIndex, itemIndex, 1)" :disabled="itemIndex === day.items.length - 1" title="下移">↓</button>
+                      <button class="btn-del compact" type="button" @click="removePlanItem(dayIndex, itemIndex)" :disabled="day.items.length === 1">刪除</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <span class="field-hint json-hint" :class="jsonValid ? 'hint-ok' : 'hint-err'">
+                {{ jsonValid ? '行程格式可儲存' : planError }}
+              </span>
+
+              <details class="json-details">
+                <summary>進階：查看 JSON</summary>
+                <textarea
+                  :value="planJson"
+                  rows="12"
+                  spellcheck="false"
+                  class="json-editor"
+                  readonly
+                  placeholder='[{"dayLabel":"D1 (9/24)","items":[{"time":"08:40","location":"集合地點","info":"說明","type":"light"}]}]'
+                ></textarea>
+              </details>
+            </div>
           </div>
         </div>
 
@@ -96,9 +285,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { collection, getDocs, setDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDoc, getDocs, setDoc, deleteDoc, doc, orderBy, query, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
+import { uploadImageFile } from '../../utils/imageUpload';
+import { extractActivityRecordFromPdf } from '../../utils/activityRecordPdf';
+import { applyMovementTypeToDay } from '../../utils/activityRecordParser';
 
 const trips = ref([]);
 const isFetching = ref(false);
@@ -107,43 +299,214 @@ const showForm = ref(false);
 const editingId = ref(null);
 const formStatus = ref('');
 const formStatusClass = ref('');
+const coverFile = ref(null);
+const coverStatus = ref('');
+const coverStatusClass = ref('');
+const isUploadingCover = ref(false);
+const recordFileInputRef = ref(null);
+const activityRecordPreview = ref(null);
+const activityRecordDayTypes = ref([]);
+const activityRecordStatus = ref('');
+const activityRecordStatusClass = ref('');
+const isParsingRecord = ref(false);
+const isAutoTripId = ref(true);
 
-const form = ref({ id: '', title: '', semester: '', days: '', difficulty: '', coverImage: '' });
-const planJson = ref('[\n  {\n    "dayLabel": "D1 (日期)",\n    "items": [\n      { "time": "09:00", "location": "集合地點", "info": "說明", "type": "light" }\n    ]\n  }\n]');
+const form = ref(createEmptyTripForm());
+const planDays = ref(createDefaultPlan());
+const planJsonError = ref('');
 
 const jsonValid = computed(() => {
-  try { JSON.parse(planJson.value); return true; } catch { return false; }
+  return !planJsonError.value && !getPlanValidationError();
 });
+
+const planError = computed(() => planJsonError.value || getPlanValidationError() || '');
+
+const planSummary = computed(() => {
+  const itemCount = planDays.value.reduce((sum, day) => sum + (day.items?.length || 0), 0);
+  return `${planDays.value.length} 天，${itemCount} 個節點`;
+});
+
+const planJson = computed({
+  get() {
+    return JSON.stringify(normalizePlan(planDays.value), null, 2);
+  },
+  set(value) {
+    try {
+      const parsed = JSON.parse(value);
+      planDays.value = normalizePlan(parsed);
+      planJsonError.value = '';
+    } catch (e) {
+      planJsonError.value = 'JSON 格式錯誤：' + e.message;
+    }
+  },
+});
+
+watch(planDays, () => {
+  planJsonError.value = '';
+}, { deep: true });
 
 async function loadTrips() {
   isFetching.value = true;
   try {
-    const snap = await getDocs(collection(db, 'trip'));
-    trips.value = snap.docs.map(d => ({ ...d.data() })).sort((a, b) =>
-      (b.semester || '').localeCompare(a.semester || '')
-    );
+    const tripsQuery = query(collection(db, 'trip'), orderBy('semester', 'desc'));
+    const snap = await getDocs(tripsQuery);
+    trips.value = snap.docs.map(d => ({ ...d.data(), id: d.id }));
   } finally {
     isFetching.value = false;
   }
 }
 
+function createEmptyTripForm() {
+  return {
+    id: '',
+    title: '',
+    semester: '',
+    days: '',
+    difficulty: '',
+    status: 'draft',
+    coverImage: '',
+    coverStoragePath: '',
+    weather: createEmptyWeatherForm(),
+  };
+}
+
+function createEmptyWeatherForm() {
+  return {
+    summary: '',
+    temperature: '',
+    rainChance: '',
+    wind: '',
+    source: '',
+    updatedAt: '',
+    note: '',
+  };
+}
+
+function createDefaultPlan() {
+  return [
+    {
+      dayLabel: 'D1 (日期)',
+      items: [
+        createPlanItem({ time: '09:00', location: '集合地點', info: '說明', type: 'light' }),
+      ],
+    },
+  ];
+}
+
+function createPlanItem(item = {}) {
+  return {
+    time: item.time || '',
+    location: item.location || '',
+    info: item.info || '',
+    type: ['ride', 'heavy', 'light'].includes(item.type) ? item.type : 'light',
+  };
+}
+
+function normalizePlan(rawPlan) {
+  if (!Array.isArray(rawPlan) || rawPlan.length === 0) return createDefaultPlan();
+
+  return rawPlan.map((day, dayIndex) => {
+    const items = Array.isArray(day?.items) && day.items.length
+      ? day.items.map(createPlanItem)
+      : [createPlanItem()];
+
+    return {
+      dayLabel: day?.dayLabel || `D${dayIndex + 1}`,
+      items,
+    };
+  });
+}
+
+function setPlanFromRaw(rawPlan) {
+  planDays.value = normalizePlan(rawPlan);
+  planJsonError.value = '';
+}
+
+function getPlanValidationError() {
+  if (!planDays.value.length) return '至少需要一天行程';
+
+  for (const [dayIndex, day] of planDays.value.entries()) {
+    if (!day.dayLabel?.trim()) return `第 ${dayIndex + 1} 天缺少日期標籤`;
+    if (!day.items?.length) return `${day.dayLabel} 至少需要一個節點`;
+
+    for (const [itemIndex, item] of day.items.entries()) {
+      if (!item.time?.trim()) return `${day.dayLabel} 第 ${itemIndex + 1} 筆缺少時間`;
+      if (!item.location?.trim()) return `${day.dayLabel} 第 ${itemIndex + 1} 筆缺少地點`;
+    }
+  }
+
+  return '';
+}
+
+function addPlanDay() {
+  planDays.value.push({
+    dayLabel: `D${planDays.value.length + 1} (日期)`,
+    items: [createPlanItem()],
+  });
+  planJsonError.value = '';
+}
+
+function removePlanDay(dayIndex) {
+  if (planDays.value.length === 1) return;
+  planDays.value.splice(dayIndex, 1);
+  planJsonError.value = '';
+}
+
+function movePlanDay(dayIndex, direction) {
+  moveArrayItem(planDays.value, dayIndex, dayIndex + direction);
+  planJsonError.value = '';
+}
+
+function addPlanItem(dayIndex) {
+  planDays.value[dayIndex]?.items.push(createPlanItem());
+  planJsonError.value = '';
+}
+
+function removePlanItem(dayIndex, itemIndex) {
+  const items = planDays.value[dayIndex]?.items;
+  if (!items || items.length === 1) return;
+  items.splice(itemIndex, 1);
+  planJsonError.value = '';
+}
+
+function movePlanItem(dayIndex, itemIndex, direction) {
+  const items = planDays.value[dayIndex]?.items;
+  if (!items) return;
+  moveArrayItem(items, itemIndex, itemIndex + direction);
+  planJsonError.value = '';
+}
+
+function moveArrayItem(items, fromIndex, toIndex) {
+  if (toIndex < 0 || toIndex >= items.length || fromIndex === toIndex) return;
+  const [item] = items.splice(fromIndex, 1);
+  items.splice(toIndex, 0, item);
+}
+
 function openForm(trip) {
   if (trip) {
     editingId.value = trip.id;
+    isAutoTripId.value = false;
     form.value = {
       id: trip.id || '',
       title: trip.title || '',
       semester: trip.semester || '',
       days: trip.days || '',
       difficulty: trip.difficulty || '',
+      status: trip.status || 'published',
       coverImage: trip.coverImage || '',
+      coverStoragePath: trip.coverStoragePath || '',
+      weather: { ...createEmptyWeatherForm(), ...(trip.weather || {}) },
     };
-    planJson.value = JSON.stringify(trip.plan || [], null, 2);
+    setPlanFromRaw(trip.plan || []);
   } else {
     editingId.value = null;
-    form.value = { id: '', title: '', semester: '', days: '', difficulty: '', coverImage: '' };
-    planJson.value = '[\n  {\n    "dayLabel": "D1 (日期)",\n    "items": [\n      { "time": "09:00", "location": "集合地點", "info": "說明", "type": "light" }\n    ]\n  }\n]';
+    isAutoTripId.value = true;
+    form.value = createEmptyTripForm();
+    setPlanFromRaw(createDefaultPlan());
   }
+  coverFile.value = null;
+  coverStatus.value = '';
+  clearActivityRecordImport();
   showForm.value = true;
   formStatus.value = '';
   setTimeout(() => document.querySelector('.admin-section:last-child')?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -152,6 +515,8 @@ function openForm(trip) {
 function closeForm() {
   showForm.value = false;
   editingId.value = null;
+  isAutoTripId.value = true;
+  clearActivityRecordImport();
 }
 
 function setStatus(msg, ok = true) {
@@ -161,17 +526,39 @@ function setStatus(msg, ok = true) {
 }
 
 async function saveTrip() {
-  if (!form.value.id.trim() || !form.value.title.trim()) {
-    setStatus('行程 ID 和名稱為必填', false);
+  if (!form.value.title.trim()) {
+    setStatus('行程名稱為必填', false);
     return;
   }
-  if (!jsonValid.value) return;
+  if (!jsonValid.value) {
+    setStatus(planError.value || '行程格式錯誤', false);
+    return;
+  }
 
   isSaving.value = true;
   try {
-    const plan = JSON.parse(planJson.value);
-    const data = { ...form.value, plan };
+    if (!editingId.value) {
+      if (!form.value.id.trim() || isAutoTripId.value) {
+        form.value.id = await generateUniqueTripId();
+      } else {
+        form.value.id = normalizeTripId(form.value.id);
+        if (!form.value.id) {
+          form.value.id = await generateUniqueTripId();
+        }
+      }
+
+      const existingTrip = await getDoc(doc(db, 'trip', form.value.id));
+      if (existingTrip.exists()) {
+        setStatus(`行程 ID「${form.value.id}」已存在，請按「自動產生」換一個`, false);
+        return;
+      }
+    }
+
+    const plan = normalizePlan(planDays.value);
+    const data = { ...form.value, plan, weather: normalizeWeather(form.value.weather) };
     if (!data.coverImage) delete data.coverImage;
+    if (!data.coverStoragePath) delete data.coverStoragePath;
+    if (!data.weather) delete data.weather;
     await setDoc(doc(db, 'trip', form.value.id.trim()), data);
     setStatus('✅ 儲存成功！');
     await loadTrips();
@@ -181,6 +568,235 @@ async function saveTrip() {
   } finally {
     isSaving.value = false;
   }
+}
+
+function normalizeWeather(weather) {
+  const clean = Object.fromEntries(
+    Object.entries({ ...createEmptyWeatherForm(), ...(weather || {}) })
+      .map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+  );
+
+  return Object.values(clean).some(Boolean) ? clean : null;
+}
+
+function onCoverFileChange(e) {
+  coverFile.value = e.target.files?.[0] || null;
+  coverStatus.value = '';
+}
+
+async function uploadCoverImage() {
+  if (!editingId.value || !coverFile.value) return;
+
+  isUploadingCover.value = true;
+  coverStatus.value = '';
+  try {
+    const uploaded = await uploadImageFile(coverFile.value, `trip-covers/${editingId.value}`, {
+      maxWidth: 1800,
+      quality: 0.86,
+    });
+
+    form.value.coverImage = uploaded.url;
+    form.value.coverStoragePath = uploaded.storagePath;
+
+    await updateDoc(doc(db, 'trip', editingId.value), {
+      coverImage: uploaded.url,
+      coverStoragePath: uploaded.storagePath,
+    });
+
+    coverStatus.value = '✅ 封面已上傳並更新';
+    coverStatusClass.value = 'status-ok';
+    coverFile.value = null;
+    await loadTrips();
+  } catch (e) {
+    coverStatus.value = '封面上傳失敗：' + e.message;
+    coverStatusClass.value = 'status-err';
+  } finally {
+    isUploadingCover.value = false;
+  }
+}
+
+async function onActivityRecordFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  isParsingRecord.value = true;
+  activityRecordStatus.value = '正在解析活動記錄紙...';
+  activityRecordStatusClass.value = 'status-ok';
+
+  try {
+    const parsed = await extractActivityRecordFromPdf(file);
+    if (!parsed.plan.length) {
+      throw new Error('沒有辨識到可套用的行程紀錄');
+    }
+
+    activityRecordPreview.value = parsed;
+    activityRecordDayTypes.value = parsed.dayTypes.map((type) => (type === 'light' ? 'light' : 'heavy'));
+    activityRecordStatus.value = `已解析 ${parsed.plan.length} 天、${parsed.itemCount} 筆紀錄`;
+    activityRecordStatusClass.value = parsed.warnings.length ? 'status-err' : 'status-ok';
+  } catch (e) {
+    activityRecordPreview.value = null;
+    activityRecordDayTypes.value = [];
+    activityRecordStatus.value = '解析失敗：' + e.message;
+    activityRecordStatusClass.value = 'status-err';
+  } finally {
+    isParsingRecord.value = false;
+  }
+}
+
+function setActivityRecordDayType(dayIndex, movementType) {
+  if (!activityRecordPreview.value?.plan?.[dayIndex]) return;
+
+  activityRecordPreview.value.plan[dayIndex] = applyMovementTypeToDay(
+    activityRecordPreview.value.plan[dayIndex],
+    movementType
+  );
+}
+
+function applyActivityRecordToForm() {
+  if (!activityRecordPreview.value) return;
+
+  setPlanFromRaw(activityRecordPreview.value.plan);
+  if (!form.value.title.trim() && activityRecordPreview.value.activityName) {
+    form.value.title = activityRecordPreview.value.activityName;
+  }
+  if (!form.value.days.trim() && activityRecordPreview.value.daysText) {
+    form.value.days = activityRecordPreview.value.daysText;
+  }
+  syncAutoTripId();
+
+  setStatus('✅ 已套用活動記錄紙內容，請確認後儲存');
+}
+
+function clearActivityRecordImport() {
+  activityRecordPreview.value = null;
+  activityRecordDayTypes.value = [];
+  activityRecordStatus.value = '';
+  activityRecordStatusClass.value = '';
+  isParsingRecord.value = false;
+  if (recordFileInputRef.value) recordFileInputRef.value.value = '';
+}
+
+function movementTypeLabel(type) {
+  return {
+    ride: '搭車',
+    heavy: '重裝',
+    light: '輕裝',
+  }[type] || type;
+}
+
+function onTripIdInput(event) {
+  if (editingId.value) return;
+  isAutoTripId.value = false;
+  form.value.id = normalizeTripId(event.target.value);
+}
+
+function onTripTitleInput(event) {
+  form.value.title = event.target.value;
+  syncAutoTripId();
+}
+
+function syncAutoTripId() {
+  if (editingId.value || !isAutoTripId.value) return;
+  form.value.id = createTripIdCandidate();
+}
+
+function regenerateTripId() {
+  if (editingId.value) return;
+  isAutoTripId.value = true;
+  form.value.id = createTripIdCandidate();
+}
+
+async function generateUniqueTripId() {
+  const baseId = createTripIdBase();
+  let candidate = createLocallyUniqueTripId(baseId);
+  let counter = 2;
+
+  while ((await getDoc(doc(db, 'trip', candidate))).exists()) {
+    candidate = `${baseId}-${counter}`;
+    counter += 1;
+  }
+
+  return candidate;
+}
+
+function createTripIdCandidate() {
+  return createLocallyUniqueTripId(createTripIdBase());
+}
+
+function createLocallyUniqueTripId(baseId) {
+  const existingIds = new Set(trips.value.map((trip) => trip.id).filter(Boolean));
+  if (!existingIds.has(baseId)) return baseId;
+
+  let counter = 2;
+  while (existingIds.has(`${baseId}-${counter}`)) counter += 1;
+  return `${baseId}-${counter}`;
+}
+
+function createTripIdBase() {
+  const title = form.value.title || activityRecordPreview.value?.activityName || '';
+  const dateRange = activityRecordPreview.value?.dateRange || '';
+  const slug = slugifyAscii(title);
+  const dateSlug = formatDateRangeForId(dateRange);
+  const hash = shortHash(`${title}|${dateRange}|${form.value.semester || ''}`);
+
+  if (slug && /[a-z]/.test(slug) && slug !== 'trip') {
+    return normalizeTripId(dateSlug ? `${slug}-${dateSlug}` : slug);
+  }
+
+  return normalizeTripId(`trip-${dateSlug || currentDateForId()}-${hash}`);
+}
+
+function slugifyAscii(text) {
+  return String(text || '')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 42);
+}
+
+function normalizeTripId(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 64);
+}
+
+function formatDateRangeForId(dateRange) {
+  const dates = String(dateRange || '').match(/\d{1,2}\/\d{1,2}|\d{1,2}/g);
+  if (!dates?.length) return '';
+
+  const first = normalizeDatePartForId(dates[0]);
+  const last = normalizeDatePartForId(dates[dates.length - 1], first.slice(0, 2));
+  return first && last && first !== last ? `${first}-${last}` : first;
+}
+
+function normalizeDatePartForId(datePart, fallbackMonth = '') {
+  const parts = String(datePart || '').split('/');
+  if (parts.length === 2) {
+    return `${parts[0].padStart(2, '0')}${parts[1].padStart(2, '0')}`;
+  }
+  if (parts.length === 1 && fallbackMonth) {
+    return `${fallbackMonth}${parts[0].padStart(2, '0')}`;
+  }
+  return '';
+}
+
+function currentDateForId() {
+  const now = new Date();
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function shortHash(text) {
+  let hash = 0;
+  const source = String(text || 'trip');
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36).padStart(4, '0').slice(0, 6);
 }
 
 async function deleteTrip(trip) {
@@ -224,6 +840,8 @@ onMounted(loadTrips);
   font-size: 0.75rem; padding: 2px 10px; border-radius: 20px;
 }
 .tag-diff { background: #fff3e0; color: #e65100; }
+.tag-draft { background: #f4eeee; color: #8a4a35; }
+.tag-published { background: #e8f5ee; color: #2e7d52; }
 .trip-actions { display: flex; gap: 8px; }
 
 /* Form */
@@ -232,19 +850,236 @@ onMounted(loadTrips);
 
 .field-row { display: flex; flex-direction: column; gap: 5px; }
 .field-row label { font-size: 0.82rem; color: #555; font-weight: 600; }
+.id-row { display: flex; gap: 8px; align-items: center; }
+.id-row input { flex: 1; min-width: 0; }
+.id-row .btn-secondary { white-space: nowrap; padding-inline: 12px; }
 .required { color: #c0392b; }
-.field-row input, .field-row textarea {
+.field-row input, .field-row textarea, .field-row select {
   padding: 9px 12px; border: 1px solid #ddd; border-radius: 7px;
   font-size: 0.92rem; font-family: inherit;
 }
-.field-row input:focus, .field-row textarea:focus { outline: none; border-color: #1A432D; }
+.field-row input:focus, .field-row textarea:focus, .field-row select:focus { outline: none; border-color: #1A432D; }
 .field-row input:disabled { background: #f5f5f5; color: #999; }
 .field-hint { font-size: 0.78rem; color: #999; }
 .hint-ok { color: #2e7d52; }
 .hint-err { color: #c0392b; }
 .json-editor { font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; line-height: 1.5; }
 .cover-preview { width: 120px; height: 80px; object-fit: cover; border-radius: 6px; margin-top: 6px; }
+.cover-upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.cover-upload input { padding: 0; border: none; }
 .json-hint { font-weight: 600; margin-top: 4px; }
+
+.weather-editor {
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8faf9;
+}
+
+.weather-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.weather-grid .full-width {
+  grid-column: 1 / -1;
+}
+
+.record-import-box {
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8faf9;
+}
+.record-upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.record-upload-row input { padding: 0; border: none; }
+.record-status { margin: 8px 0 0; }
+.record-preview {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.record-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #1A432D;
+}
+.record-summary span {
+  background: #e8f5ee;
+  color: #2e7d52;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.78rem;
+}
+.record-warnings {
+  margin: 0;
+  padding-left: 18px;
+  color: #c0392b;
+  font-size: 0.85rem;
+}
+.record-days { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.record-day {
+  background: white;
+  border: 1px solid #e4ebe6;
+  border-radius: 8px;
+  padding: 12px;
+}
+.record-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.record-day-header strong { color: #1A432D; }
+.record-day-header label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #666;
+  white-space: nowrap;
+}
+.record-day-header select {
+  border: 1px solid #d7e1dc;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-family: inherit;
+}
+.record-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.record-items li {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+.record-time { color: #1A432D; font-weight: 700; }
+.record-place { color: #444; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-type {
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.record-type-heavy { background: #e8f5ee; color: #1A432D; }
+.record-type-light { background: #eef6ff; color: #1a5276; }
+.record-type-ride { background: #fff3e0; color: #e65100; }
+.record-more { color: #888; font-size: 0.78rem; }
+.record-actions { display: flex; justify-content: flex-end; }
+
+.plan-editor {
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8faf9;
+}
+.plan-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.plan-toolbar span {
+  color: #1A432D;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.plan-day-editor {
+  background: white;
+  border: 1px solid #e3ebe6;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.plan-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.plan-day-header input {
+  max-width: 220px;
+  font-weight: 700;
+  color: #1A432D;
+}
+.plan-day-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.plan-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-table-head,
+.plan-row {
+  display: grid;
+  grid-template-columns: 88px minmax(150px, 1fr) minmax(180px, 1.2fr) 96px 140px;
+  gap: 8px;
+  align-items: center;
+}
+.plan-table-head {
+  color: #718077;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.plan-row input,
+.plan-row select,
+.plan-day-header input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.btn-del.compact {
+  padding: 7px 10px;
+  font-size: 0.78rem;
+}
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #d8e2dc;
+  border-radius: 7px;
+  background: white;
+  color: #1A432D;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn-del:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.json-details {
+  margin-top: 12px;
+}
+.json-details summary {
+  color: #1A432D;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.json-details textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
 
 .status-msg { font-size: 0.88rem; margin-bottom: 14px; }
 .status-ok { color: #2e7d52; }
@@ -282,6 +1117,23 @@ onMounted(loadTrips);
 @media (max-width: 600px) {
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .full-width { grid-column: 1; }
+  .weather-grid { grid-template-columns: 1fr; }
+  .weather-grid .full-width { grid-column: 1; }
+  .id-row { align-items: stretch; flex-direction: column; }
+  .plan-toolbar,
+  .plan-day-header { align-items: stretch; flex-direction: column; }
+  .plan-day-header input { max-width: none; }
+  .plan-table-head { display: none; }
+  .plan-row {
+    grid-template-columns: 1fr;
+    border: 1px solid #edf1ee;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fbfdfc;
+  }
   .trip-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .record-days { grid-template-columns: 1fr; }
+  .record-items li { grid-template-columns: 48px 1fr; }
+  .record-type { justify-self: start; grid-column: 2; }
 }
 </style>

@@ -41,9 +41,10 @@
 import { ref } from 'vue';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 const email = ref('');
 const password = ref('');
 const errorMsg = ref('');
@@ -54,7 +55,10 @@ async function handleLogin() {
   isLoading.value = true;
   try {
     await signInWithEmailAndPassword(auth, email.value, password.value);
-    router.push('/cymc-admin/dashboard');
+    const redirect = typeof route.query.redirect === 'string'
+      ? route.query.redirect
+      : '/cymc-admin/dashboard';
+    router.push(redirect);
   } catch (err) {
     switch (err.code) {
       case 'auth/user-not-found':

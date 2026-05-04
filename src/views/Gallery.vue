@@ -1,9 +1,6 @@
 <template>
   <div class="trips-overview-page">
-    <header class="page-header">
-      <h1>隊伍回顧</h1>
-      <p>每一次登頂，都是最美的風景</p>
-    </header>
+    <PageHeader title="隊伍回顧" subtitle="每一次登頂，都是最美的風景" />
 
     <main class="container">
       <div class="filter-section">
@@ -20,6 +17,13 @@
             <option v-for="sem in availableSemesters" :key="sem" :value="sem">{{ sem }}</option>
           </select>
         </div>
+        <div class="semester-filter">
+          <label for="type-select">選擇類型：</label>
+          <select id="type-select" v-model="selectedType">
+            <option value="all">全部類型</option>
+            <option v-for="type in availableTypes" :key="type" :value="type">{{ type }}</option>
+          </select>
+        </div>
       </div>
       
       <LoadingOverlay v-if="isLoading" text="探索山林中..." />
@@ -29,26 +33,37 @@
         <button class="btn-retry" @click="$router.go(0)">重新載入</button>
       </div>
         
-      <div class="trip-grid" v-else> 
+      <div class="album-list" v-else>
         <div v-if="filteredTrips.length === 0" class="no-results">
           <p>找不到符合條件的隊伍</p>
         </div>
-        <router-link 
-          v-for="(trip, idx) in filteredTrips" 
-          :key="trip.id"
-          :to="{ name: 'TripDetail', query: { id: trip.id } }" 
-          class="trip-card"
-          data-aos="fade-up"
-          :data-aos-delay="(idx % 4) * 100"
-        >
-          <div class="card-img" :style="{ backgroundImage: `url(${trip.coverImage || defaultImg})` }"></div>
-          
-          <div class="card-content">
-            <span class="tag">{{ trip.semester }}</span>
-            <h3>{{ trip.title }}</h3>
-            <p class="meta-info">天數：{{ trip.days }} | 難度：{{ trip.difficulty }}</p>
+        <section v-for="group in groupedTrips" :key="group.semester" class="album-section">
+          <div class="album-heading">
+            <div>
+              <span>Album</span>
+              <h2>{{ group.semester }} 隊伍回顧</h2>
+            </div>
+            <p>{{ group.trips.length }} 筆紀錄</p>
           </div>
-        </router-link>
+          <div class="trip-grid">
+            <router-link
+              v-for="(trip, idx) in group.trips"
+              :key="trip.id"
+              :to="{ name: 'TripDetail', query: { id: trip.id } }"
+              class="trip-card"
+              data-aos="fade-up"
+              :data-aos-delay="(idx % 4) * 100"
+            >
+              <div class="card-img" :style="{ backgroundImage: `url(${trip.coverImage || defaultImg})` }"></div>
+
+              <div class="card-content">
+                <span class="tag">{{ trip.difficulty || '山社隊伍' }}</span>
+                <h3>{{ trip.title }}</h3>
+                <p class="meta-info">天數：{{ trip.days || '未標註' }} | 學期：{{ trip.semester }}</p>
+              </div>
+            </router-link>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -56,9 +71,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
+import PageHeader from '../components/PageHeader.vue';
+import { preloadImages } from '../utils/preloadImages';
 
 defineOptions({ name: 'Gallery' });
 
@@ -67,6 +84,7 @@ const trips = ref([]);
 const isLoading = ref(true);
 const errorMsg = ref('');
 const selectedSemester = ref('all');
+const selectedType = ref('all');
 const searchQuery = ref('');
 // 如果 Firebase 沒傳圖片，就用這張預設的山景圖
 const defaultImg = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80';
@@ -77,11 +95,19 @@ const availableSemesters = computed(() => {
   return [...new Set(sems)].sort().reverse();
 });
 
+const availableTypes = computed(() => {
+  const types = trips.value.map(t => t.difficulty).filter(Boolean);
+  return [...new Set(types)].sort();
+});
+
 // --- 篩選後的隊伍列表 ---
 const filteredTrips = computed(() => {
   let result = trips.value;
   if (selectedSemester.value !== 'all') {
     result = result.filter(t => t.semester === selectedSemester.value);
+  }
+  if (selectedType.value !== 'all') {
+    result = result.filter(t => t.difficulty === selectedType.value);
   }
   const q = searchQuery.value.trim().toLowerCase();
   if (q) {
@@ -90,35 +116,36 @@ const filteredTrips = computed(() => {
   return result;
 });
 
+const groupedTrips = computed(() => {
+  const groups = new Map();
+  filteredTrips.value.forEach((trip) => {
+    const semester = trip.semester || '未標註學期';
+    if (!groups.has(semester)) groups.set(semester, []);
+    groups.get(semester).push(trip);
+  });
+  return [...groups.entries()].map(([semester, groupTrips]) => ({ semester, trips: groupTrips }));
+});
+
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
 onMounted(async () => {
   try {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('連線逾時')), 8000)
     );
-    const querySnapshot = await Promise.race([getDocs(collection(db, "trip")), timeout]);
-    const tempTrips = [];
+    const tripsQuery = query(collection(db, "trip"), orderBy("semester", "desc"));
+    const querySnapshot = await Promise.race([getDocs(tripsQuery), timeout]);
     
-    querySnapshot.forEach((doc) => {
-      tempTrips.push({
+    trips.value = querySnapshot.docs
+      .map((doc) => ({
+        ...doc.data(),
         id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    // 🌟 新增的排序魔法：把資料按照「學期」從新到舊 (遞減) 排序
-    tempTrips.sort((a, b) => {
-      // 比較兩者的 semester 字串 (例如 "113-1" 和 "112-2")
-      // 如果 a 的學期大於 b，a 就排在前面 (-1)
-      if (a.semester > b.semester) return -1;
-      // 如果 a 的學期小於 b，b 就排在前面 (1)
-      if (a.semester < b.semester) return 1;
-      // 如果學期一樣，就保持原樣 (0)
-      return 0; 
-    });
-    
-    // 把排序好的陣列交給畫面的變數
-    trips.value = tempTrips;
+      }))
+      .filter((trip) => trip.status !== 'draft');
+
+    await preloadImages(
+      trips.value.slice(0, 12).map(trip => trip.coverImage || defaultImg),
+      { timeoutMs: 8000 }
+    );
     
   } catch (error) {
     console.error("抓取列表失敗:", error);
@@ -143,28 +170,6 @@ onMounted(async () => {
   margin: 0 auto;    /* 讓整個區塊在畫面上水平置中 */
   padding: 0 40px;   /* 兩側加一點內邊距，確保螢幕縮小時也不會貼死邊緣 */
 }
-/* 頂部標題區塊 */
-.page-header {
-  background: linear-gradient(rgba(26, 67, 45, 0.8), rgba(26, 67, 45, 0.8)), url('https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2070');
-  background-size: cover;
-  background-position: center;
-  text-align: center;
-  padding: 60px 20px;
-  margin-bottom: 40px;
-  color: white;
-}
-
-.page-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-  letter-spacing: 2px;
-}
-
-.page-header p {
-  font-size: 1.1rem;
-  opacity: 0.9;
-}
-
 /* 篩選器樣式 */
 .filter-section {
   display: flex;
@@ -217,6 +222,45 @@ onMounted(async () => {
 }
 
 /* 🌟 卡片網格排版 (固定四排與響應式) */
+.album-list {
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+}
+
+.album-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.album-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  border-bottom: 1px solid #e2e9df;
+  padding-bottom: 14px;
+}
+
+.album-heading span {
+  color: #a67b25;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.album-heading h2 {
+  color: #1A432D;
+  margin: 4px 0 0;
+  font-size: 1.5rem;
+}
+
+.album-heading p {
+  margin: 0;
+  color: #78847d;
+  font-size: 0.9rem;
+}
+
 .trip-grid {
   display: grid;
   /* 大螢幕預設：強制分為 4 等分 (4個一排) */
@@ -244,6 +288,10 @@ onMounted(async () => {
 @media (max-width: 600px) {
   .trip-grid {
     grid-template-columns: repeat(1, 1fr);
+  }
+  .album-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

@@ -9,36 +9,47 @@
     </div>
 
     <template v-if="!isLoading">
-      <header class="hero">
+      <header class="hero" :style="heroStyle">
         <div class="hero-content">
-          <h1>來都來了，來爬山吧</h1>
-          <p>一步一腳印，看見台灣之美</p>
-          <router-link to="/join" class="btn-primary">立即加入</router-link>
+          <h1>{{ siteSettings.homeHeroTitle }}</h1>
+          <p>{{ siteSettings.homeHeroSubtitle }}</p>
+          <a
+            v-if="isExternalCta"
+            :href="siteSettings.homeCtaPath"
+            class="btn-primary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ siteSettings.homeCtaText }}
+          </a>
+          <router-link v-else :to="siteSettings.homeCtaPath || '/join'" class="btn-primary">
+            {{ siteSettings.homeCtaText }}
+          </router-link>
         </div>
       </header>
 
       <main class="container">
         <section class="intro-section" data-aos="fade-up">
-          <h2>歡迎來到中原大學登山社</h2>
+          <h2>{{ siteSettings.homeIntroTitle }}</h2>
           <div class="divider"></div>
           <p class="intro-text">
-            我們是一群熱愛山林、挑戰自我的夥伴。在這裡，你可以找到志同道合的朋友，一起探索台灣的百岳與秘境。
+            {{ siteSettings.homeIntroText }}
           </p>
         </section>
 
         <!-- 照片牆區塊 -->
         <section class="photo-wall-section" v-if="photos.length > 0" data-aos="fade-up">
-          <h2>山林回憶</h2>
+          <h2>{{ siteSettings.homePhotoWallTitle }}</h2>
           <div class="divider"></div>
           <Transition name="photo-fade" mode="out-in">
             <div class="photo-grid" :key="currentPage">
               <div
-                v-for="(photo, idx) in displayedPhotos"
-                :key="idx"
+                v-for="photo in displayedPhotos"
+                :key="photo.url"
                 class="photo-item"
                 @click="openLightboxByUrl(photo.url)"
               >
-                <img :src="photo.url" :alt="photo.caption || '山社照片'" loading="lazy" @load="e => e.target.classList.add('loaded')" />
+                <img :src="photo.url" :alt="photo.caption || '山社照片'" loading="eager" decoding="async" @load="e => e.target.classList.add('loaded')" />
                 <div class="photo-overlay" v-if="photo.caption"><span>{{ photo.caption }}</span></div>
               </div>
             </div>
@@ -60,7 +71,7 @@
         </Teleport>
 
         <section class="recent-trips-section" v-if="upcomingTrips.length > 0" data-aos="fade-up">
-          <h2>即將出發</h2>
+          <h2>{{ siteSettings.homeRecentTripsTitle }}</h2>
           <div class="divider"></div>
           <div class="recent-trips-grid">
             <div 
@@ -74,8 +85,8 @@
                 <span class="recent-tag">{{ trip.date }}</span>
                 <h3>{{ trip.title }}</h3>
                 <a 
-                  v-if="trip.facebook_url && trip.facebook_url !== '無'" 
-                  :href="trip.facebook_url" 
+                  v-if="isValidFacebookUrl(trip.facebook_url)"
+                  :href="trip.facebook_url.trim()"
                   target="_blank" 
                   rel="noopener noreferrer" 
                   class="btn-fb"
@@ -95,8 +106,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { doc, getDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { getDownloadURL, ref as storageRef } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
+import { preloadImages } from '../utils/preloadImages';
+import { defaultSiteSettings, getSiteSettings } from '../utils/siteSettings';
 
 defineOptions({ name: 'Home' });
 
@@ -106,18 +120,28 @@ const upcomingTrips = ref([]);
 const photos = ref([]);
 const lightboxIndex = ref(null);
 const currentPage = ref(0);
+const heroImageUrl = ref('https://i.postimg.cc/RZgpMKth/20240421-053558(1)-(1).jpg');
+const siteSettings = ref({ ...defaultSiteSettings });
 let rotateTimer = null;
+let isSwitchingPhotoPage = false;
 
-// 每次顯示 6 張，用 modulo 讓圖片序列循環
-const displayedPhotos = computed(() => {
-  const total = photos.value.length;
-  if (total === 0) return [];
-  return Array.from({ length: 6 }, (_, i) =>
-    photos.value[(currentPage.value * 6 + i) % total]
-  );
+const PHOTO_PAGE_SIZE = 6;
+
+const isExternalCta = computed(() => /^https?:\/\//.test(siteSettings.value.homeCtaPath || ''));
+
+const photoRotationMs = computed(() => {
+  const seconds = Number(siteSettings.value.homePhotoRotationSeconds);
+  return (Number.isFinite(seconds) ? seconds : defaultSiteSettings.homePhotoRotationSeconds) * 1000;
 });
 
-function openLightbox(idx) { lightboxIndex.value = idx; }
+const heroStyle = computed(() => ({
+  backgroundImage: `linear-gradient(rgba(26, 67, 45, 0.5), rgba(26, 67, 45, 0.5)), url("${heroImageUrl.value}")`,
+}));
+
+const displayedPhotos = computed(() => {
+  return getPhotosForPage(currentPage.value);
+});
+
 function openLightboxByUrl(url) {
   const idx = photos.value.findIndex(p => p.url === url);
   if (idx !== -1) lightboxIndex.value = idx;
@@ -131,6 +155,91 @@ function lightboxNext() {
 }
 
 onUnmounted(() => { if (rotateTimer) clearInterval(rotateTimer); });
+
+function getPhotosForPage(page) {
+  const total = photos.value.length;
+  if (total === 0) return [];
+
+  const count = Math.min(PHOTO_PAGE_SIZE, total);
+  if (total <= PHOTO_PAGE_SIZE) return photos.value.slice(0, count);
+
+  return Array.from({ length: count }, (_, i) =>
+    photos.value[(page * PHOTO_PAGE_SIZE + i) % total]
+  );
+}
+
+function getUniquePhotos(items) {
+  const seenUrls = new Set();
+  return items.filter((item) => {
+    if (!item?.url || seenUrls.has(item.url)) return false;
+    seenUrls.add(item.url);
+    return true;
+  });
+}
+
+function isValidFacebookUrl(url) {
+  return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
+}
+
+async function loadHeroImage() {
+  try {
+    heroImageUrl.value = await getDownloadURL(storageRef(storage, siteSettings.value.homeHeroStoragePath));
+  } catch (e) {
+    console.warn('首頁封面圖載入失敗，使用備用圖片:', e);
+  }
+}
+
+async function loadUpcomingTrips() {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('連線逾時')), 8000)
+  );
+  const docRef = doc(db, 'schedules', siteSettings.value.currentSemester);
+  const docSnap = await Promise.race([getDoc(docRef), timeout]);
+
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcoming = (data.items || []).filter((item) => {
+      const d = parseScheduleDate(item.date);
+      return d && d >= today;
+    });
+
+    upcomingTrips.value = upcoming.slice(0, 3);
+  }
+}
+
+async function loadPhotoWall() {
+  try {
+    const q = query(collection(db, 'photos'), orderBy('uploadedAt', 'desc'), limit(60));
+    const snap = await getDocs(q);
+    const allPhotos = getUniquePhotos(snap.docs.map(d => d.data()));
+    const featuredPhotos = allPhotos
+      .filter(photo => photo.homeFeatured)
+      .sort((a, b) => (Number(a.homeOrder) || 9999) - (Number(b.homeOrder) || 9999));
+    const source = siteSettings.value.homePhotoSource;
+    const limitCount = Math.min(60, Math.max(6, Number(siteSettings.value.homePhotoLimit) || defaultSiteSettings.homePhotoLimit));
+
+    photos.value = (source === 'featured' && featuredPhotos.length ? featuredPhotos : allPhotos).slice(0, limitCount);
+
+    if (photos.value.length > PHOTO_PAGE_SIZE) {
+      await preloadImages(getPhotosForPage(1).map(photo => photo.url), { timeoutMs: 6000 });
+      rotateTimer = setInterval(showNextPhotoPage, photoRotationMs.value);
+    }
+  } catch (e) {
+    console.warn('照片牆載入失敗:', e);
+  }
+}
+
+async function showNextPhotoPage() {
+  if (isSwitchingPhotoPage || photos.value.length <= PHOTO_PAGE_SIZE) return;
+  isSwitchingPhotoPage = true;
+  const nextPage = currentPage.value + 1;
+  await preloadImages(getPhotosForPage(nextPage).map(photo => photo.url), { timeoutMs: 6000 });
+  currentPage.value = nextPage;
+  isSwitchingPhotoPage = false;
+}
 
 // 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成今年的 Date
 function parseScheduleDate(dateStr) {
@@ -147,39 +256,12 @@ function parseScheduleDate(dateStr) {
 
 onMounted(async () => {
   try {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('連線逾時')), 8000)
-    );
-    const docRef = doc(db, 'schedules', '114-2');
-    const docSnap = await Promise.race([getDoc(docRef), timeout]);
-
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const upcoming = (data.items || []).filter((item) => {
-        const d = parseScheduleDate(item.date);
-        return d && d >= today;
-      });
-
-      upcomingTrips.value = upcoming.slice(0, 3);
-    }
-    // 載入照片牆（最多 24 張，不足時輪迴補齊）
-    try {
-      const q = query(collection(db, 'photos'), orderBy('uploadedAt', 'desc'), limit(24));
-      const snap = await getDocs(q);
-      const raw = snap.docs.map(d => d.data());
-      if (raw.length > 0) {
-        let filled = [...raw];
-        while (filled.length < 24) filled = [...filled, ...raw];
-        photos.value = filled.slice(0, 24);
-        // 每 6 秒切換下一批
-        rotateTimer = setInterval(() => { currentPage.value++; }, 6000);
-      }
-    } catch (e) {
-      console.warn('照片牆載入失敗:', e);
-    }
+    siteSettings.value = await getSiteSettings();
+    await Promise.all([loadHeroImage(), loadUpcomingTrips(), loadPhotoWall()]);
+    await preloadImages([
+      heroImageUrl.value,
+      ...displayedPhotos.value.map(photo => photo.url),
+    ], { timeoutMs: 10000 });
   } catch (e) {
     console.error('首頁載入即將出發隊伍失敗:', e);
     errorMsg.value = '載入失敗，請檢查網路連線後重新整理';
@@ -193,9 +275,10 @@ onMounted(async () => {
 /* 🌟 1. Hero 區塊優化 */
 .hero {
   margin-top: 0;
-  /* 使用你提供的絕美山照作為背景 */
-  background: linear-gradient(rgba(26, 67, 45, 0.5), rgba(26, 67, 45, 0.5)), 
-              url('https://i.postimg.cc/RZgpMKth/20240421-053558(1)-(1).jpg') center/cover no-repeat;
+  background-color: #1A432D;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   height: 70vh; /* 稍微調高一點，更有視覺衝擊力 */
   display: flex;
   justify-content: center;
@@ -254,7 +337,9 @@ onMounted(async () => {
 .intro-section h2 {
   color: #1A432D;
   font-size: 2rem;
+  line-height: 1.3;
   margin-bottom: 15px;
+  white-space: nowrap;
 }
 
 /* 點綴用的小裝飾線 */
@@ -276,7 +361,12 @@ onMounted(async () => {
 @media (max-width: 600px) {
   .hero { height: 60vh; }
   .intro-section { padding: 50px 20px; }
+  .intro-section h2 { font-size: 1.55rem; }
   .recent-trips-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 360px) {
+  .intro-section h2 { font-size: 1.35rem; }
 }
 
 /* 近期隊伍區塊 */
