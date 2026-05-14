@@ -3,7 +3,7 @@
     <div class="not-found-content">
       <h1>404</h1>
       <p>找不到這個頁面，可能已經被雲霧遮蔽了</p>
-      <router-link to="/" class="btn-back">回到首頁</router-link>
+      <NuxtLink to="/" class="btn-back">回到首頁</NuxtLink>
     </div>
   </div>
 </template>

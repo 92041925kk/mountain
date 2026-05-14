@@ -11,25 +11,25 @@
           <div class="card-icon">🗓️</div>
           <h3>行事曆管理</h3>
           <p>新增、編輯、刪除本學期出隊行程</p>
-          <router-link to="/cymc-admin/schedule" class="btn-card">進入管理</router-link>
+          <NuxtLink to="/cymc-admin/schedule" class="btn-card">進入管理</NuxtLink>
         </div>
         <div class="admin-card">
           <div class="card-icon">🖼️</div>
           <h3>照片管理</h3>
           <p>上傳新照片或刪除照片牆圖片</p>
-          <router-link to="/cymc-admin/photos" class="btn-card">進入管理</router-link>
+          <NuxtLink to="/cymc-admin/photos" class="btn-card">進入管理</NuxtLink>
         </div>
         <div class="admin-card">
           <div class="card-icon">🥾</div>
           <h3>行程紀錄管理</h3>
           <p>新增或編輯各次出隊的詳細時間線</p>
-          <router-link to="/cymc-admin/trips" class="btn-card">進入管理</router-link>
+          <NuxtLink to="/cymc-admin/trips" class="btn-card">進入管理</NuxtLink>
         </div>
         <div class="admin-card">
           <div class="card-icon">⚙️</div>
           <h3>網站設定</h3>
           <p>調整目前學期、首頁封面與網站分享摘要</p>
-          <router-link to="/cymc-admin/settings" class="btn-card">進入管理</router-link>
+          <NuxtLink to="/cymc-admin/settings" class="btn-card">進入管理</NuxtLink>
         </div>
       </div>
     </main>

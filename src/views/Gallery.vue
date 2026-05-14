@@ -30,7 +30,7 @@
 
       <div v-else-if="errorMsg" class="error-banner">
         <p>⚠️ {{ errorMsg }}</p>
-        <button class="btn-retry" @click="$router.go(0)">重新載入</button>
+        <button class="btn-retry" @click="reloadPage">重新載入</button>
       </div>
         
       <div class="album-list" v-else>
@@ -46,10 +46,10 @@
             <p>{{ group.trips.length }} 筆紀錄</p>
           </div>
           <div class="trip-grid">
-            <router-link
+            <NuxtLink
               v-for="(trip, idx) in group.trips"
               :key="trip.id"
-              :to="{ name: 'TripDetail', query: { id: trip.id } }"
+              :to="{ path: '/trip', query: { id: trip.id } }"
               class="trip-card"
               data-aos="fade-up"
               :data-aos-delay="(idx % 4) * 100"
@@ -61,7 +61,7 @@
                 <h3>{{ trip.title }}</h3>
                 <p class="meta-info">天數：{{ trip.days || '未標註' }} | 學期：{{ trip.semester }}</p>
               </div>
-            </router-link>
+            </NuxtLink>
           </div>
         </section>
       </div>
@@ -125,6 +125,10 @@ const groupedTrips = computed(() => {
   });
   return [...groups.entries()].map(([semester, groupTrips]) => ({ semester, trips: groupTrips }));
 });
+
+function reloadPage() {
+  window.location.reload();
+}
 
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
 onMounted(async () => {

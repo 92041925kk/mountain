@@ -17,7 +17,7 @@
               <span>1</span>
               <h3>先認識山社</h3>
               <p>看看常見問題，確認裝備、體能、安全與報名方式。</p>
-              <router-link to="/faq">查看 FAQ</router-link>
+              <NuxtLink to="/faq">查看 FAQ</NuxtLink>
             </article>
             <article class="starter-step">
               <span>2</span>
@@ -29,13 +29,13 @@
               <span>3</span>
               <h3>從社課開始</h3>
               <p>先參加社課或初嚮，熟悉隊伍節奏、裝備整理與基本山野觀念。</p>
-              <router-link to="/schedule">看近期活動</router-link>
+              <NuxtLink to="/schedule">看近期活動</NuxtLink>
             </article>
             <article class="starter-step">
               <span>4</span>
               <h3>一起出隊</h3>
               <p>報名前確認時間、裝備與隊伍需求，再跟著大家走進山裡。</p>
-              <router-link to="/gallery">看隊伍回顧</router-link>
+              <NuxtLink to="/gallery">看隊伍回顧</NuxtLink>
             </article>
           </div>
 
@@ -57,9 +57,9 @@
 
           <div class="action-area">
             <p class="call-to-action">第一次接觸登山？先看看常見問題吧！</p>
-            <router-link to="/faq" class="btn-primary">
+            <NuxtLink to="/faq" class="btn-primary">
               ❓ 常見問題 FAQ
-            </router-link>
+            </NuxtLink>
           </div>
         </section>
       </main>

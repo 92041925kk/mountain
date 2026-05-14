@@ -32,33 +32,6 @@
             <p class="weather-source" v-if="trip.weather.source">資料來源：{{ trip.weather.source }}</p>
           </section>
 
-          <section class="detail-upload-box" v-if="currentUser && !errorMsg">
-            <h3>新增行程照片</h3>
-            <div class="upload-grid">
-              <div class="field-row">
-                <label>照片位置</label>
-                <select v-model="uploadLocation">
-                  <option value="">選擇照片對應的位置</option>
-                  <option v-for="location in planLocations" :key="location" :value="location">{{ location }}</option>
-                </select>
-              </div>
-              <div class="field-row">
-                <label>照片說明</label>
-                <input v-model="uploadCaption" placeholder="例：溪谷起溯點" />
-              </div>
-              <div class="field-row full-width">
-                <label>照片檔案</label>
-                <input type="file" accept="image/*" @change="onTripPhotoChange" />
-              </div>
-            </div>
-            <div class="upload-actions">
-              <button class="btn-upload" @click="uploadTripPhoto" :disabled="!uploadFile || !uploadLocation || isUploadingPhoto">
-                {{ isUploadingPhoto ? '上傳中...' : '上傳照片' }}
-              </button>
-              <span class="upload-status" v-if="uploadStatus" :class="uploadStatusClass">{{ uploadStatus }}</span>
-            </div>
-          </section>
-          
           <div class="movement-legend-container" v-if="plan.length > 0">
             <span class="legend-title">移動方式：</span>
             <div class="legend-item">
@@ -131,14 +104,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, where } from "firebase/firestore";
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '../firebase';
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import TripSidebar from '../components/TripSidebar.vue';
 import { preloadImages } from '../utils/preloadImages';
-import { uploadImageFile } from '../utils/imageUpload';
 
 const route = useRoute();
 
@@ -148,23 +118,6 @@ const photos = ref([]);
 const isLoading = ref(true);
 const errorMsg = ref('');
 const activePhoto = ref(null);
-const currentUser = ref(auth.currentUser);
-const uploadFile = ref(null);
-const uploadLocation = ref('');
-const uploadCaption = ref('');
-const uploadStatus = ref('');
-const uploadStatusClass = ref('');
-const isUploadingPhoto = ref(false);
-
-const planLocations = computed(() => {
-  const locations = [];
-  for (const day of plan.value) {
-    for (const item of day.items || []) {
-      if (item.location && !locations.includes(item.location)) locations.push(item.location);
-    }
-  }
-  return locations;
-});
 
 const hasWeather = computed(() => {
   const weather = trip.value.weather || {};
@@ -190,9 +143,6 @@ const heroStyle = computed(() => {
 
 onMounted(async () => {
   const tripId = route.query.id || 'hehuan-nw-2026';
-  onAuthStateChanged(auth, (user) => {
-    currentUser.value = user;
-  });
 
   try {
     const timeout = new Promise((_, reject) =>
@@ -238,45 +188,6 @@ async function loadTripPhotos(tripId) {
 
 function locationPhotos(location) {
   return photos.value.filter(photo => photo.location === location);
-}
-
-function onTripPhotoChange(e) {
-  uploadFile.value = e.target.files?.[0] || null;
-  uploadStatus.value = '';
-}
-
-async function uploadTripPhoto() {
-  const tripId = route.query.id || 'hehuan-nw-2026';
-  if (!uploadFile.value || !uploadLocation.value) return;
-
-  isUploadingPhoto.value = true;
-  uploadStatus.value = '';
-  try {
-    const uploaded = await uploadImageFile(uploadFile.value, `photos/${tripId}`, {
-      maxWidth: 1920,
-      quality: 0.82,
-    });
-
-    await addDoc(collection(db, 'photos'), {
-      url: uploaded.url,
-      storagePath: uploaded.storagePath,
-      tripId,
-      location: uploadLocation.value,
-      caption: uploadCaption.value.trim(),
-      uploadedAt: serverTimestamp(),
-    });
-
-    uploadStatus.value = '照片已上傳';
-    uploadStatusClass.value = 'status-ok';
-    uploadFile.value = null;
-    uploadCaption.value = '';
-    await loadTripPhotos(tripId);
-  } catch (e) {
-    uploadStatus.value = '上傳失敗：' + e.message;
-    uploadStatusClass.value = 'status-err';
-  } finally {
-    isUploadingPhoto.value = false;
-  }
 }
 
 function openLightbox(photo) {
@@ -377,87 +288,6 @@ function closeLightbox() {
 .weather-source {
   margin: 10px 0 0;
 }
-
-.detail-upload-box {
-  background: #f8faf9;
-  border: 1px solid #e1ebe5;
-  border-left: 4px solid #1A432D;
-  border-radius: 10px;
-  padding: 18px;
-  margin-bottom: 26px;
-}
-
-.detail-upload-box h3 {
-  margin: 0 0 14px;
-  color: #1A432D;
-  font-size: 1.05rem;
-}
-
-.upload-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.upload-grid .full-width {
-  grid-column: 1 / -1;
-}
-
-.field-row {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.field-row label {
-  color: #555;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.field-row input,
-.field-row select {
-  padding: 8px 10px;
-  border: 1px solid #d8e2dc;
-  border-radius: 7px;
-  font-family: inherit;
-}
-
-.field-row input:focus,
-.field-row select:focus {
-  outline: none;
-  border-color: #1A432D;
-}
-
-.upload-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-
-.btn-upload {
-  background: #1A432D;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 9px 18px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btn-upload:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.upload-status {
-  font-size: 0.88rem;
-}
-
-.status-ok { color: #2e7d52; }
-.status-err { color: #c0392b; }
 
 /* 🌟 左右雙欄排版設定 🌟 */
 .record-and-photo-layout {
@@ -597,7 +427,6 @@ function closeLightbox() {
     width: 100%; 
   }
 
-  .upload-grid,
   .weather-grid,
   .timeline-photos {
     grid-template-columns: 1fr;

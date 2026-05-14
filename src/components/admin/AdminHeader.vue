@@ -2,13 +2,13 @@
   <header class="admin-header">
     <div class="admin-header-inner">
       <div class="admin-nav">
-        <router-link to="/cymc-admin/dashboard" class="back-link">← 後台首頁</router-link>
+        <NuxtLink to="/cymc-admin/dashboard" class="back-link">← 後台首頁</NuxtLink>
         <span class="divider-line">|</span>
         <span class="page-title">{{ title }}</span>
       </div>
       <div class="admin-user">
         <span class="user-email">{{ userEmail }}</span>
-        <router-link to="/" class="btn-home">回到首頁</router-link>
+        <NuxtLink to="/" class="btn-home">回到首頁</NuxtLink>
         <button class="btn-logout" @click="handleLogout">登出</button>
       </div>
     </div>
@@ -19,8 +19,6 @@
 import { computed } from 'vue';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
-import { useRouter } from 'vue-router';
-
 defineProps({ title: { type: String, required: true } });
 
 const router = useRouter();

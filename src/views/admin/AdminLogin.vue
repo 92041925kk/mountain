@@ -39,9 +39,9 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRoute, useRouter } from '#app';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { useRoute, useRouter } from 'vue-router';
+import { auth, authPersistenceReady } from '../../firebase';
 
 const router = useRouter();
 const route = useRoute();
@@ -50,16 +50,30 @@ const password = ref('');
 const errorMsg = ref('');
 const isLoading = ref(false);
 
+function getRedirectTarget() {
+  const redirect = Array.isArray(route.query.redirect)
+    ? route.query.redirect[0]
+    : route.query.redirect;
+
+  return typeof redirect === 'string' && redirect.startsWith('/cymc-admin') && redirect !== '/cymc-admin'
+    ? redirect
+    : '/cymc-admin/dashboard';
+}
+
 async function handleLogin() {
   errorMsg.value = '';
   isLoading.value = true;
   try {
-    await signInWithEmailAndPassword(auth, email.value, password.value);
-    const redirect = typeof route.query.redirect === 'string'
-      ? route.query.redirect
-      : '/cymc-admin/dashboard';
-    router.push(redirect);
+    await authPersistenceReady;
+    const credential = await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+
+    if (!credential.user) {
+      throw new Error('Firebase did not return a signed-in user.');
+    }
+
+    await router.replace(getRedirectTarget());
   } catch (err) {
+    console.error('Admin login failed:', err);
     switch (err.code) {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
@@ -69,8 +83,14 @@ async function handleLogin() {
       case 'auth/too-many-requests':
         errorMsg.value = '嘗試次數過多，請稍後再試';
         break;
+      case 'auth/unauthorized-domain':
+        errorMsg.value = '目前網址尚未加入 Firebase 授權網域';
+        break;
+      case 'auth/network-request-failed':
+        errorMsg.value = '網路連線失敗，請確認連線後再試';
+        break;
       default:
-        errorMsg.value = '登入失敗，請稍後再試';
+        errorMsg.value = err.code ? `登入失敗：${err.code}` : '登入失敗，請稍後再試';
     }
   } finally {
     isLoading.value = false;

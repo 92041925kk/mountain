@@ -226,13 +226,34 @@
 
                 <div class="plan-table">
                   <div class="plan-table-head">
+                    <span class="drag-column-label">排序</span>
                     <span>時間</span>
                     <span>地點</span>
                     <span>備註</span>
                     <span>類型</span>
                     <span>操作</span>
                   </div>
-                  <div v-for="(item, itemIndex) in day.items" :key="itemIndex" class="plan-row">
+                  <div
+                    v-for="(item, itemIndex) in day.items"
+                    :key="getPlanItemKey(item)"
+                    class="plan-row"
+                    :class="{ 'is-dragging': isDraggingPlanItem(dayIndex, itemIndex) }"
+                    :data-day-index="dayIndex"
+                    :data-item-index="itemIndex"
+                  >
+                    <button
+                      class="drag-handle"
+                      type="button"
+                      aria-label="長按拖曳排序"
+                      title="長按拖曳排序"
+                      @pointerdown="startPlanItemDragPress($event, dayIndex, itemIndex)"
+                      @pointermove="updatePlanItemDrag($event)"
+                      @pointerup="endPlanItemDragPress($event)"
+                      @pointercancel="cancelPlanItemDrag($event)"
+                      @dragstart.prevent
+                    >
+                      ⋮⋮
+                    </button>
                     <input v-model="item.time" placeholder="08:40" />
                     <input v-model="item.location" placeholder="集合地點" />
                     <input v-model="item.info" placeholder="說明，可留空" />
@@ -284,7 +305,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { collection, getDoc, getDocs, setDoc, deleteDoc, doc, orderBy, query, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
@@ -314,6 +335,12 @@ const isAutoTripId = ref(true);
 const form = ref(createEmptyTripForm());
 const planDays = ref(createDefaultPlan());
 const planJsonError = ref('');
+const dragState = ref(null);
+
+let planDragTimer = null;
+let planItemKeyCounter = 0;
+const planItemKeys = new WeakMap();
+const PLAN_DRAG_DELAY = 280;
 
 const jsonValid = computed(() => {
   return !planJsonError.value && !getPlanValidationError();
@@ -474,6 +501,104 @@ function movePlanItem(dayIndex, itemIndex, direction) {
   if (!items) return;
   moveArrayItem(items, itemIndex, itemIndex + direction);
   planJsonError.value = '';
+}
+
+function getPlanItemKey(item) {
+  if (!planItemKeys.has(item)) {
+    planItemKeyCounter += 1;
+    planItemKeys.set(item, `plan-item-${planItemKeyCounter}`);
+  }
+  return planItemKeys.get(item);
+}
+
+function startPlanItemDragPress(event, dayIndex, itemIndex) {
+  if (event.button !== undefined && event.button !== 0) return;
+
+  clearPlanDragTimer();
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+
+  dragState.value = {
+    dayIndex,
+    itemIndex,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    isDragging: false,
+    handle: event.currentTarget,
+  };
+
+  planDragTimer = window.setTimeout(() => {
+    if (!dragState.value || dragState.value.pointerId !== event.pointerId) return;
+    dragState.value = { ...dragState.value, isDragging: true };
+    document.body.classList.add('plan-item-dragging');
+  }, PLAN_DRAG_DELAY);
+}
+
+function updatePlanItemDrag(event) {
+  const state = dragState.value;
+  if (!state || state.pointerId !== event.pointerId) return;
+
+  if (!state.isDragging) {
+    const moved = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+    if (moved > 8) cancelPlanItemDrag(event);
+    return;
+  }
+
+  event.preventDefault();
+
+  const targetRow = document
+    .elementFromPoint(event.clientX, event.clientY)
+    ?.closest?.('[data-day-index][data-item-index]');
+
+  if (!targetRow) return;
+
+  const targetDayIndex = Number(targetRow.dataset.dayIndex);
+  const targetItemIndex = Number(targetRow.dataset.itemIndex);
+  if (targetDayIndex !== state.dayIndex || Number.isNaN(targetItemIndex)) return;
+  if (targetItemIndex === state.itemIndex) return;
+
+  const items = planDays.value[state.dayIndex]?.items;
+  if (!items) return;
+
+  moveArrayItem(items, state.itemIndex, targetItemIndex);
+  planJsonError.value = '';
+  dragState.value = { ...state, itemIndex: targetItemIndex };
+}
+
+function endPlanItemDragPress(event) {
+  const state = dragState.value;
+  if (state && event.pointerId !== state.pointerId) return;
+  finishPlanItemDrag();
+}
+
+function cancelPlanItemDrag(event) {
+  const state = dragState.value;
+  if (state && event?.pointerId !== undefined && event.pointerId !== state.pointerId) return;
+  finishPlanItemDrag();
+}
+
+function finishPlanItemDrag() {
+  clearPlanDragTimer();
+
+  const state = dragState.value;
+  state?.handle?.releasePointerCapture?.(state.pointerId);
+  dragState.value = null;
+
+  if (typeof document !== 'undefined') {
+    document.body.classList.remove('plan-item-dragging');
+  }
+}
+
+function clearPlanDragTimer() {
+  if (!planDragTimer) return;
+  window.clearTimeout(planDragTimer);
+  planDragTimer = null;
+}
+
+function isDraggingPlanItem(dayIndex, itemIndex) {
+  return dragState.value?.isDragging
+    && dragState.value.dayIndex === dayIndex
+    && dragState.value.itemIndex === itemIndex;
 }
 
 function moveArrayItem(items, fromIndex, toIndex) {
@@ -810,6 +935,7 @@ async function deleteTrip(trip) {
 }
 
 onMounted(loadTrips);
+onBeforeUnmount(finishPlanItemDrag);
 </script>
 
 <style scoped>
@@ -1024,7 +1150,7 @@ onMounted(loadTrips);
 .plan-table-head,
 .plan-row {
   display: grid;
-  grid-template-columns: 88px minmax(150px, 1fr) minmax(180px, 1.2fr) 96px 140px;
+  grid-template-columns: 34px 88px minmax(150px, 1fr) minmax(180px, 1.2fr) 96px 140px;
   gap: 8px;
   align-items: center;
 }
@@ -1033,11 +1159,54 @@ onMounted(loadTrips);
   font-size: 0.76rem;
   font-weight: 700;
 }
+.drag-column-label {
+  text-align: center;
+}
+.plan-row {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 2px;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.plan-row.is-dragging {
+  background: #eef7f2;
+  border-color: #9bc7ad;
+  box-shadow: 0 8px 20px rgba(26, 67, 45, 0.14);
+}
 .plan-row input,
 .plan-row select,
 .plan-day-header input {
   width: 100%;
   box-sizing: border-box;
+}
+.drag-handle {
+  width: 30px;
+  height: 34px;
+  border: 1px solid #d8e2dc;
+  border-radius: 7px;
+  background: white;
+  color: #718077;
+  cursor: grab;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  touch-action: none;
+  user-select: none;
+}
+.drag-handle:active {
+  cursor: grabbing;
+  color: #1A432D;
+  border-color: #9bc7ad;
+  background: #f6fbf8;
+}
+.plan-row.is-dragging .drag-handle {
+  cursor: grabbing;
+  color: #1A432D;
+  border-color: #7eb293;
+}
+:global(body.plan-item-dragging) {
+  cursor: grabbing;
+  user-select: none;
 }
 .btn-del.compact {
   padding: 7px 10px;
@@ -1130,6 +1299,9 @@ onMounted(loadTrips);
     border-radius: 8px;
     padding: 10px;
     background: #fbfdfc;
+  }
+  .drag-handle {
+    justify-self: start;
   }
   .trip-row { flex-direction: column; align-items: flex-start; gap: 10px; }
   .record-days { grid-template-columns: 1fr; }

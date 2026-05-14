@@ -1,49 +1,44 @@
 # 中原大學登山社網站
 
-Vue 3 + Vite + Firebase 建置的中原大學登山社網站。
+Nuxt 3 + Firebase 架設的中原大學登山社官方網站，包含首頁、社史、隊伍回顧、學期行程、入社資訊、FAQ 與後台管理。
 
-## 開發環境
+## 開發
 
-建議使用 Node.js 20.19 以上，並統一使用 npm。
+需要 Node.js 20.19 以上，並先安裝 npm 套件。
 
 ```sh
 npm install
 npm run dev
-npm run build
 ```
 
-## Firebase Rules
+## 建置與部署
 
-專案已補上 `firebase.json`、`firestore.rules`、`storage.rules`。
-
-目前規則採用：
-
-- 公開讀取網站前台資料與圖片。
-- 已登入 Firebase Auth 的使用者可以寫入後台資料、照片、GPX 與網站設定。
-- `admins` 與未列出的集合預設拒絕存取。
-
-若之後要開放註冊或新增不同權限角色，建議再改成 Firebase custom claims 或 UID allowlist，避免所有已登入帳號都有後台寫入權限。
-
-部署規則：
+本專案以 Nuxt SPA/static 模式輸出，Firebase Hosting 會部署 `.output/public`。
 
 ```sh
 npm run build
 firebase deploy
 ```
 
-若只要更新網站前端：
+只部署 Hosting：
 
 ```sh
 npm run build
 firebase deploy --only hosting
 ```
 
-後台路由使用 Vue Router history mode，`firebase.json` 已設定 Hosting rewrite，讓 `/cymc-admin` 與 `/cymc-admin/*` 直接開啟或重新整理時都會回到 `index.html`。
+## Firebase Rules
 
-## Recommended IDE Setup
+Firebase 設定在 `firebase.json`、`firestore.rules` 與 `storage.rules`。
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar)。
+- 前台可讀取公開頁面需要的資料。
+- 後台管理頁使用 Firebase Auth 驗證。
+- `admins` collection 可用來搭配後台權限規則。
 
-## Customize configuration
+正式上線前建議再依實際管理者名單加入 custom claims 或 UID allowlist。
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## Nuxt Notes
+
+- 主要頁面仍放在 `src/views`，Nuxt 路由 wrapper 放在 `src/pages`。
+- 後台路由透過 `src/middleware/auth.client.js` 保護。
+- AOS 動畫改由 `src/plugins/aos.client.js` 初始化。

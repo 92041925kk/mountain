@@ -3,14 +3,19 @@
     <AdminHeader title="照片管理" />
 
     <main class="admin-main">
-
-      <!-- 上傳區 -->
       <section class="admin-section">
         <h3>上傳新照片</h3>
         <div class="upload-area" @dragover.prevent @drop.prevent="onDrop">
           <p>拖放圖片到這裡，或</p>
-          <input ref="fileInputRef" type="file" multiple accept="image/*" class="hidden-input" @change="onFileChange" />
-          <button class="btn-pick" @click="fileInputRef.click()">選擇圖片</button>
+          <input
+            ref="fileInputRef"
+            type="file"
+            multiple
+            accept="image/*"
+            class="hidden-input"
+            @change="onFileChange"
+          />
+          <button class="btn-pick" type="button" @click="fileInputRef.click()">選擇圖片</button>
           <span class="file-count" v-if="selectedFiles.length"> 已選 {{ selectedFiles.length }} 張</span>
         </div>
 
@@ -21,7 +26,7 @@
           </div>
           <div class="field-row">
             <label>行程 ID（選填）</label>
-            <input v-model="uploadTripId" placeholder="例：laomei-creek-2026" />
+            <input v-model="uploadTripId" placeholder="例：laomei-creek-2026" list="trip-id-options" />
           </div>
           <div class="field-row">
             <label>照片位置（選填）</label>
@@ -41,24 +46,23 @@
         </div>
 
         <div class="upload-actions" v-if="selectedFiles.length">
-          <button class="btn-primary" @click="uploadFiles" :disabled="isUploading">
+          <button class="btn-primary" type="button" @click="uploadFiles" :disabled="isUploading">
             {{ isUploading ? `壓縮上傳中... (${doneCount}/${selectedFiles.length})` : `上傳 ${selectedFiles.length} 張` }}
           </button>
-          <button class="btn-secondary" @click="clearSelection" :disabled="isUploading">清除選取</button>
+          <button class="btn-secondary" type="button" @click="clearSelection" :disabled="isUploading">清除選取</button>
         </div>
 
         <div class="upload-log" v-if="uploadLog.length">
           <p v-for="(msg, i) in uploadLog" :key="i" :class="msg.ok ? 'log-ok' : 'log-err'">
-            {{ msg.ok ? '✅' : '❌' }} {{ msg.text }}
+            {{ msg.ok ? '成功' : '失敗' }}：{{ msg.text }}
           </p>
         </div>
       </section>
 
-      <!-- 現有照片 -->
       <section class="admin-section">
         <div class="section-header">
           <h3>現有照片（{{ filteredPhotos.length }} / {{ photos.length }} 張）</h3>
-          <button class="btn-secondary" @click="loadPhotos">重新整理</button>
+          <button class="btn-secondary" type="button" @click="loadPhotos">重新整理</button>
         </div>
 
         <div class="photo-filters">
@@ -106,8 +110,8 @@
                   </label>
                 </div>
                 <div class="card-actions">
-                  <button class="btn-secondary small" @click="cancelEdit">取消</button>
-                  <button class="btn-primary small" @click="savePhotoEdits(photo)" :disabled="isSavingPhoto">
+                  <button class="btn-secondary small" type="button" @click="cancelEdit">取消</button>
+                  <button class="btn-primary small" type="button" @click="savePhoto(photo)" :disabled="isSavingPhoto">
                     {{ isSavingPhoto ? '儲存中...' : '儲存' }}
                   </button>
                 </div>
@@ -121,8 +125,8 @@
                   <span v-if="photo.homeOrder">排序 {{ photo.homeOrder }}</span>
                 </div>
                 <div class="card-actions">
-                  <button class="btn-secondary small" @click="openEditPhoto(photo)">編輯</button>
-                  <button class="btn-del small" @click="confirmDelete(photo)">刪除</button>
+                  <button class="btn-secondary small" type="button" @click="openEditPhoto(photo)">編輯</button>
+                  <button class="btn-del small" type="button" @click="confirmDelete(photo)">刪除</button>
                 </div>
               </template>
             </div>
@@ -138,248 +142,62 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
-import {
-  collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
-  serverTimestamp, query, orderBy
-} from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../../firebase';
+import { onMounted } from 'vue';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
+import { useAdminPhotos } from '../../composables/useAdminPhotos';
 
-// ── 現有照片 ──
-const photos = ref([]);
-const trips = ref([]);
-const isFetching = ref(false);
-const searchQuery = ref('');
-const selectedTripFilter = ref('all');
-const homeFilter = ref('all');
-const editingPhotoId = ref('');
-const editForm = ref(createEmptyEditForm());
-const isSavingPhoto = ref(false);
+const {
+  photos,
+  trips,
+  isFetching,
+  searchQuery,
+  selectedTripFilter,
+  homeFilter,
+  editingPhotoId,
+  editForm,
+  isSavingPhoto,
+  filteredPhotos,
+  fileInputRef,
+  selectedFiles,
+  uploadCaption,
+  uploadTripId,
+  uploadLocation,
+  uploadHomeFeatured,
+  uploadHomeOrder,
+  isUploading,
+  doneCount,
+  uploadLog,
+  loadPhotos,
+  loadInitialData,
+  deletePhoto,
+  openEditPhoto,
+  cancelEdit,
+  savePhotoEdits,
+  onFileChange,
+  onDrop,
+  clearSelection,
+  uploadFiles,
+} = useAdminPhotos();
 
-const filteredPhotos = computed(() => {
-  const keyword = searchQuery.value.trim().toLowerCase();
-  return photos.value.filter((photo) => {
-    if (selectedTripFilter.value === 'unlinked' && photo.tripId) return false;
-    if (selectedTripFilter.value !== 'all' && selectedTripFilter.value !== 'unlinked' && photo.tripId !== selectedTripFilter.value) return false;
-    if (homeFilter.value === 'featured' && !photo.homeFeatured) return false;
-    if (homeFilter.value === 'normal' && photo.homeFeatured) return false;
-    if (!keyword) return true;
-    return [photo.caption, photo.tripId, photo.location]
-      .some(value => String(value || '').toLowerCase().includes(keyword));
-  });
-});
-
-async function loadPhotos() {
-  isFetching.value = true;
+async function savePhoto(photo) {
   try {
-    const q = query(collection(db, 'photos'), orderBy('uploadedAt', 'desc'));
-    const snap = await getDocs(q);
-    photos.value = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
-  } finally {
-    isFetching.value = false;
+    await savePhotoEdits(photo);
+  } catch (e) {
+    alert('儲存失敗：' + e.message);
   }
-}
-
-async function loadTrips() {
-  const q = query(collection(db, 'trip'), orderBy('semester', 'desc'));
-  const snap = await getDocs(q);
-  trips.value = snap.docs.map(d => ({ docId: d.id, id: d.id, ...d.data() }));
 }
 
 async function confirmDelete(photo) {
   if (!confirm(`確定刪除這張照片？\n${photo.caption || photo.url}`)) return;
+
   try {
-    if (photo.storagePath) {
-      await deleteObject(storageRef(storage, photo.storagePath));
-    }
-    await deleteDoc(doc(db, 'photos', photo.docId));
-    photos.value = photos.value.filter(p => p.docId !== photo.docId);
+    await deletePhoto(photo);
   } catch (e) {
     alert('刪除失敗：' + e.message);
   }
 }
 
-function createEmptyEditForm() {
-  return {
-    caption: '',
-    tripId: '',
-    location: '',
-    homeFeatured: false,
-    homeOrder: '',
-  };
-}
-
-function openEditPhoto(photo) {
-  editingPhotoId.value = photo.docId;
-  editForm.value = {
-    caption: photo.caption || '',
-    tripId: photo.tripId || '',
-    location: photo.location || '',
-    homeFeatured: Boolean(photo.homeFeatured),
-    homeOrder: photo.homeOrder || '',
-  };
-}
-
-function cancelEdit() {
-  editingPhotoId.value = '';
-  editForm.value = createEmptyEditForm();
-}
-
-async function savePhotoEdits(photo) {
-  isSavingPhoto.value = true;
-  try {
-    const clean = {
-      caption: editForm.value.caption.trim(),
-      tripId: editForm.value.tripId.trim() || null,
-      location: editForm.value.location.trim(),
-      homeFeatured: Boolean(editForm.value.homeFeatured),
-      homeOrder: editForm.value.homeFeatured ? normalizeOrder(editForm.value.homeOrder) : null,
-      updatedAt: serverTimestamp(),
-    };
-
-    await updateDoc(doc(db, 'photos', photo.docId), clean);
-    Object.assign(photo, clean);
-    cancelEdit();
-  } catch (e) {
-    alert('儲存失敗：' + e.message);
-  } finally {
-    isSavingPhoto.value = false;
-  }
-}
-
-function normalizeOrder(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? Math.round(number) : null;
-}
-
-// ── 上傳 ──
-const fileInputRef = ref(null);
-const selectedFiles = ref([]);
-const uploadCaption = ref('');
-const uploadTripId = ref('');
-const uploadLocation = ref('');
-const uploadHomeFeatured = ref(false);
-const uploadHomeOrder = ref('');
-const isUploading = ref(false);
-const doneCount = ref(0);
-const uploadLog = ref([]);
-
-function onFileChange(e) {
-  selectedFiles.value = Array.from(e.target.files);
-  uploadLog.value = [];
-  doneCount.value = 0;
-}
-
-function onDrop(e) {
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  selectedFiles.value = files;
-  uploadLog.value = [];
-  doneCount.value = 0;
-}
-
-function clearSelection(options) {
-  const keepLog = options?.keepLog === true;
-  selectedFiles.value = [];
-  uploadCaption.value = '';
-  uploadTripId.value = '';
-  uploadLocation.value = '';
-  uploadHomeFeatured.value = false;
-  uploadHomeOrder.value = '';
-  if (!keepLog) {
-    uploadLog.value = [];
-    doneCount.value = 0;
-  }
-  if (fileInputRef.value) fileInputRef.value.value = '';
-}
-
-async function compressImage(file, maxWidth = 1920, quality = 0.82) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
-
-async function uploadFiles() {
-  if (!selectedFiles.value.length) return;
-  isUploading.value = true;
-  doneCount.value = 0;
-  uploadLog.value = [];
-
-  const tripId = uploadTripId.value.trim() || null;
-  const caption = uploadCaption.value.trim();
-  const location = uploadLocation.value.trim();
-
-  for (const file of selectedFiles.value) {
-    try {
-      const timestamp = Date.now();
-      let storagePath = '';
-
-      // 步驟 1：上傳到 Storage
-      let url;
-      try {
-        const compressed = await compressImage(file);
-        const compressedName = file.name.replace(/\.[^.]+$/, '.jpg');
-        const safeName = compressedName.replace(/[^a-zA-Z0-9._-]/g, '_');
-        storagePath = `photos/${tripId || 'general'}/${timestamp}_${safeName}`;
-        const fileRef = storageRef(storage, storagePath);
-        await uploadBytes(fileRef, compressed, { contentType: 'image/jpeg' });
-        url = await getDownloadURL(fileRef);
-      } catch (e) {
-        uploadLog.value.push({ ok: false, text: `${file.name}（Storage 失敗）：${e.message}` });
-        continue;
-      }
-
-      // 步驟 2：寫入 Firestore
-      try {
-        await addDoc(collection(db, 'photos'), {
-          url,
-          storagePath,
-          tripId,
-          caption,
-          location,
-          homeFeatured: uploadHomeFeatured.value,
-          homeOrder: uploadHomeFeatured.value ? normalizeOrder(uploadHomeOrder.value) : null,
-          uploadedAt: serverTimestamp(),
-        });
-      } catch (e) {
-        uploadLog.value.push({ ok: false, text: `${file.name}（Firestore 寫入失敗）：${e.message}` });
-        continue;
-      }
-
-      uploadLog.value.push({ ok: true, text: file.name });
-    } catch (e) {
-      uploadLog.value.push({ ok: false, text: `${file.name}：${e.message}` });
-    } finally {
-      doneCount.value++;
-    }
-  }
-
-  isUploading.value = false;
-  clearSelection({ keepLog: true });
-  await loadPhotos();
-}
-
-onMounted(() => {
-  loadPhotos();
-  loadTrips();
-});
+onMounted(loadInitialData);
 </script>
 
 <style scoped>
@@ -394,10 +212,9 @@ onMounted(() => {
 }
 .admin-section h3 { color: #1A432D; font-size: 1.1rem; margin-bottom: 18px; }
 
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
 .section-header h3 { margin: 0; }
 
-/* Upload */
 .upload-area {
   border: 2px dashed #b5cfc0;
   border-radius: 10px;
@@ -421,7 +238,9 @@ onMounted(() => {
   font-size: 0.95rem;
 }
 .field-row input:focus { outline: none; border-color: #1A432D; }
+
 .check-row {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 7px;
@@ -430,7 +249,7 @@ onMounted(() => {
 }
 .check-row input { width: auto; }
 
-.upload-actions { display: flex; gap: 12px; margin-bottom: 14px; }
+.upload-actions { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 
 .upload-log { font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
 .log-ok { color: #2e7d52; }
@@ -456,7 +275,6 @@ onMounted(() => {
   border-color: #1A432D;
 }
 
-/* Photos grid */
 .photos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -527,14 +345,12 @@ onMounted(() => {
   padding: 7px 12px;
   cursor: pointer;
   font-size: 0.85rem;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
-.btn-del:hover { background: #c0392b; }
-.btn-del:hover { color: white; }
+.btn-del:hover { background: #c0392b; color: white; }
 
 .hint { color: #999; text-align: center; padding: 20px 0; }
 
-/* Buttons */
 .btn-primary {
   background: #1A432D; color: white; border: none;
   padding: 9px 22px; border-radius: 8px; font-size: 0.95rem;

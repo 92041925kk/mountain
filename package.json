@@ -4,21 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "nuxt dev --no-fork",
+    "build": "nuxt generate",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview"
   },
   "dependencies": {
     "aos": "^3.0.0-beta.6",
     "firebase": "^12.11.0",
+    "nuxt": "^3.0.0",
     "pdfjs-dist": "^4.10.38",
-    "vue": "^3.5.31",
-    "vue-router": "^4.6.4"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.5",
-    "vite": "^8.0.3",
-    "vite-plugin-vue-devtools": "^8.1.1"
+    "vue": "^3.5.31"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

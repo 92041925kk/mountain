@@ -5,7 +5,7 @@
 
     <div v-if="errorMsg && !isLoading" class="error-banner">
       <p>⚠️ {{ errorMsg }}</p>
-      <button class="btn-retry" @click="$router.go(0)">重新載入</button>
+      <button class="btn-retry" @click="reloadPage">重新載入</button>
     </div>
 
     <template v-if="!isLoading">
@@ -22,9 +22,9 @@
           >
             {{ siteSettings.homeCtaText }}
           </a>
-          <router-link v-else :to="siteSettings.homeCtaPath || '/join'" class="btn-primary">
+          <NuxtLink v-else :to="siteSettings.homeCtaPath || '/join'" class="btn-primary">
             {{ siteSettings.homeCtaText }}
-          </router-link>
+          </NuxtLink>
         </div>
       </header>
 
@@ -55,7 +55,7 @@
             </div>
           </Transition>
           <div class="view-all">
-            <router-link to="/gallery" class="btn-outline">查看更多照片 →</router-link>
+            <NuxtLink to="/gallery" class="btn-outline">查看更多照片 →</NuxtLink>
           </div>
         </section>
 
@@ -95,7 +95,7 @@
             </div>
           </div>
           <div class="view-all">
-            <router-link to="/schedule" class="btn-outline">查看完整行事曆 →</router-link>
+            <NuxtLink to="/schedule" class="btn-outline">查看完整行事曆 →</NuxtLink>
           </div>
         </section>
       </main>
@@ -179,6 +179,10 @@ function getUniquePhotos(items) {
 
 function isValidFacebookUrl(url) {
   return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
+}
+
+function reloadPage() {
+  window.location.reload();
 }
 
 async function loadHeroImage() {

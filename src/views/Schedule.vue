@@ -5,7 +5,7 @@
 
     <div v-if="errorMsg && !isLoading" class="error-banner">
       <p>⚠️ {{ errorMsg }}</p>
-      <button class="btn-retry" @click="$router.go(0)">重新載入</button>
+      <button class="btn-retry" @click="reloadPage">重新載入</button>
     </div>
 
     <template v-if="!isLoading && !errorMsg">
@@ -107,6 +107,10 @@ const toggleDropdown = (index) => {
 
 function isValidFacebookUrl(url) {
   return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
+}
+
+function reloadPage() {
+  window.location.reload();
 }
 
 // --- 初始化抓取資料 ---
