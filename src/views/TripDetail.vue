@@ -119,6 +119,39 @@ const isLoading = ref(true);
 const errorMsg = ref('');
 const activePhoto = ref(null);
 
+const SITE_NAME = '中原大學登山社';
+const DEFAULT_TRIP_TITLE = '行程紀錄';
+const DEFAULT_DESCRIPTION = '查看中原大學登山社隊伍的詳細行程、照片與天氣紀錄。';
+const NOT_FOUND_DESCRIPTION = '這筆行程目前無法公開瀏覽，請回到隊伍回顧查看其他內容。';
+
+const pageTitle = computed(() => {
+  if (errorMsg.value) return `${errorMsg.value} - ${SITE_NAME}`;
+  return `${trip.value.title || DEFAULT_TRIP_TITLE} - ${SITE_NAME}`;
+});
+
+const pageDescription = computed(() => {
+  if (errorMsg.value) return NOT_FOUND_DESCRIPTION;
+  return truncateSeoText(trip.value.summary || buildTripDescription() || DEFAULT_DESCRIPTION);
+});
+
+const pageImage = computed(() => trip.value.coverImage || photos.value[0]?.url || '/favicon.ico');
+
+useHead(() => ({
+  title: pageTitle.value,
+}));
+
+useSeoMeta({
+  description: () => pageDescription.value,
+  ogType: 'article',
+  ogTitle: () => pageTitle.value,
+  ogDescription: () => pageDescription.value,
+  ogImage: () => pageImage.value,
+  twitterCard: () => (pageImage.value === '/favicon.ico' ? 'summary' : 'summary_large_image'),
+  twitterTitle: () => pageTitle.value,
+  twitterDescription: () => pageDescription.value,
+  twitterImage: () => pageImage.value,
+});
+
 const hasWeather = computed(() => {
   const weather = trip.value.weather || {};
   return ['summary', 'temperature', 'rainChance', 'wind', 'source', 'updatedAt', 'note']
@@ -157,10 +190,10 @@ onMounted(async () => {
         errorMsg.value = "找不到這筆行程資料";
         return;
       }
-      trip.value = data;
+      trip.value = { id: tripId, ...data };
       plan.value = data.plan || [];
       await loadTripPhotos(tripId);
-      await preloadImages([data.coverImage, ...photos.value.slice(0, 8).map(photo => photo.url)], { timeoutMs: 8000 });
+      await preloadImages([data.coverImage, ...photos.value.slice(0, 8).map(photo => photo.url)].filter(Boolean), { timeoutMs: 8000 });
     } else {
       errorMsg.value = "找不到這筆行程資料";
     }
@@ -188,6 +221,28 @@ async function loadTripPhotos(tripId) {
 
 function locationPhotos(location) {
   return photos.value.filter(photo => photo.location === location);
+}
+
+function buildTripDescription() {
+  const tripMeta = [trip.value.semester, trip.value.days, trip.value.difficulty]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .join(' / ');
+  const locations = plan.value
+    .flatMap(day => day.items || [])
+    .map(item => String(item.location || '').trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const routeText = locations.length ? `路線包含 ${locations.join('、')}` : '';
+  const weatherText = trip.value.weather?.summary ? `天氣：${trip.value.weather.summary}` : '';
+
+  return [tripMeta, routeText, weatherText].filter(Boolean).join('。');
+}
+
+function truncateSeoText(text, maxLength = 160) {
+  const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+  if (cleanText.length <= maxLength) return cleanText;
+  return `${cleanText.slice(0, maxLength - 3)}...`;
 }
 
 function openLightbox(photo) {

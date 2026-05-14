@@ -40,6 +40,10 @@
       <!-- 新增 / 編輯表單 -->
       <section class="admin-section" v-if="showForm">
         <h3>{{ editingId ? '編輯行程' : '新增行程' }}</h3>
+        <div class="draft-bar" v-if="draftStatus">
+          <span>{{ draftStatus }}</span>
+          <button class="btn-link" type="button" @click="clearTripDraft">清除本機草稿</button>
+        </div>
 
         <div class="form-grid">
           <div class="field-row">
@@ -89,15 +93,61 @@
           <div class="field-row full-width">
             <label>封面圖片 URL</label>
             <input v-model="form.coverImage" placeholder="https://..." />
-            <img v-if="form.coverImage" :src="form.coverImage" class="cover-preview" />
-            <div class="cover-upload" v-if="editingId">
-              <input type="file" accept="image/*" @change="onCoverFileChange" />
-              <button class="btn-secondary" @click="uploadCoverImage" :disabled="!coverFile || isUploadingCover">
-                {{ isUploadingCover ? '上傳中...' : '上傳封面到 Storage' }}
-              </button>
+            <div class="cover-manager">
+              <img
+                v-if="coverPreviewSrc"
+                :src="coverPreviewSrc"
+                class="cover-preview"
+                alt="封面預覽"
+                @error="markCoverPreviewBroken"
+              />
+              <div class="cover-info">
+                <div class="cover-upload">
+                  <input ref="coverFileInputRef" type="file" accept="image/*" @change="onCoverFileChange" />
+                  <button
+                    class="btn-secondary"
+                    type="button"
+                    @click="uploadCoverImage"
+                    :disabled="!editingId || !coverFile || isUploadingCover"
+                  >
+                    {{ isUploadingCover ? '上傳中...' : '上傳封面到 Storage' }}
+                  </button>
+                  <button
+                    class="btn-secondary"
+                    type="button"
+                    @click="clearSelectedCoverFile"
+                    :disabled="!coverFile || isUploadingCover"
+                  >
+                    清除選取
+                  </button>
+                  <button
+                    class="btn-del"
+                    type="button"
+                    @click="removeCoverImage"
+                    :disabled="(!form.coverImage && !coverFile) || isUploadingCover"
+                  >
+                    移除封面
+                  </button>
+                </div>
+                <span class="field-hint" v-if="coverFile">
+                  已選取：{{ coverFile.name }}；{{ editingId ? '可立即上傳。' : '建立行程時會自動上傳。' }}
+                </span>
+                <span class="field-hint" v-else>可貼上圖片 URL，或選擇圖片檔上傳到 Storage。</span>
+                <span class="field-hint hint-err" v-if="coverPreviewBroken">封面圖片無法載入，請檢查 URL 或重新選擇圖片。</span>
+                <span class="field-hint" v-if="coverStatus" :class="coverStatusClass">{{ coverStatus }}</span>
+              </div>
             </div>
-            <span class="field-hint" v-else>先建立行程回顧後，就可以直接上傳 Storage 封面。</span>
-            <span class="field-hint" v-if="coverStatus" :class="coverStatusClass">{{ coverStatus }}</span>
+            <span class="field-hint hint-err" v-if="coverValidationError">{{ coverValidationError }}</span>
+          </div>
+          <div class="field-row full-width">
+            <label>SEO / 分享文字</label>
+            <textarea
+              v-model="form.summary"
+              rows="3"
+              maxlength="160"
+              placeholder="可留空；留空時會自動用學期、天數、難度與行程節點產生摘要。"
+            ></textarea>
+            <span class="field-hint">{{ form.summary ? `${form.summary.length}/160` : '分享到 LINE、Facebook 時會優先使用這段描述。' }}</span>
           </div>
           <div class="field-row full-width">
             <label>天氣資訊</label>
@@ -291,10 +341,13 @@
         </div>
 
         <p class="status-msg" v-if="formStatus" :class="formStatusClass">{{ formStatus }}</p>
+        <ul class="validation-list" v-if="validationErrors.length">
+          <li v-for="error in validationErrors" :key="error">{{ error }}</li>
+        </ul>
 
         <div class="form-actions">
           <button class="btn-secondary" @click="closeForm">取消</button>
-          <button class="btn-primary" @click="saveTrip" :disabled="isSaving || !jsonValid">
+          <button class="btn-primary" @click="saveTrip" :disabled="!canSave">
             {{ isSaving ? '儲存中...' : (editingId ? '更新行程' : '建立行程') }}
           </button>
         </div>
@@ -324,6 +377,9 @@ const coverFile = ref(null);
 const coverStatus = ref('');
 const coverStatusClass = ref('');
 const isUploadingCover = ref(false);
+const coverFileInputRef = ref(null);
+const coverLocalPreviewUrl = ref('');
+const coverPreviewBroken = ref(false);
 const recordFileInputRef = ref(null);
 const activityRecordPreview = ref(null);
 const activityRecordDayTypes = ref([]);
@@ -336,17 +392,37 @@ const form = ref(createEmptyTripForm());
 const planDays = ref(createDefaultPlan());
 const planJsonError = ref('');
 const dragState = ref(null);
+const draftStatus = ref('');
+const currentDraftKey = ref('');
+const isRestoringDraft = ref(false);
 
 let planDragTimer = null;
+let draftSaveTimer = null;
 let planItemKeyCounter = 0;
 const planItemKeys = new WeakMap();
 const PLAN_DRAG_DELAY = 280;
+const DRAFT_STORAGE_PREFIX = 'cymc-admin-trip-draft:';
+const DRAFT_SAVE_DELAY = 700;
+const MAX_COVER_FILE_SIZE = 10 * 1024 * 1024;
 
 const jsonValid = computed(() => {
   return !planJsonError.value && !getPlanValidationError();
 });
 
 const planError = computed(() => planJsonError.value || getPlanValidationError() || '');
+
+const coverPreviewSrc = computed(() => coverLocalPreviewUrl.value || form.value.coverImage || '');
+
+const coverValidationError = computed(() => {
+  if (!form.value.coverImage?.trim()) return '';
+  return isValidImageUrl(form.value.coverImage)
+    ? ''
+    : '封面圖片 URL 必須是 http(s) 網址或站內 / 開頭路徑';
+});
+
+const validationErrors = computed(() => getTripValidationErrors());
+
+const canSave = computed(() => !isSaving.value && !isUploadingCover.value && validationErrors.value.length === 0);
 
 const planSummary = computed(() => {
   const itemCount = planDays.value.reduce((sum, day) => sum + (day.items?.length || 0), 0);
@@ -372,6 +448,14 @@ watch(planDays, () => {
   planJsonError.value = '';
 }, { deep: true });
 
+watch([form, planDays], () => {
+  scheduleTripDraftSave();
+}, { deep: true });
+
+watch(() => form.value.coverImage, () => {
+  coverPreviewBroken.value = false;
+});
+
 async function loadTrips() {
   isFetching.value = true;
   try {
@@ -393,6 +477,7 @@ function createEmptyTripForm() {
     status: 'draft',
     coverImage: '',
     coverStoragePath: '',
+    summary: '',
     weather: createEmptyWeatherForm(),
   };
 }
@@ -450,19 +535,83 @@ function setPlanFromRaw(rawPlan) {
 }
 
 function getPlanValidationError() {
-  if (!planDays.value.length) return '至少需要一天行程';
+  const errors = getPlanValidationErrors();
+  return errors[0] || '';
+}
 
+function getPlanValidationErrors() {
+  const errors = [];
+  if (!planDays.value.length) return ['至少需要一天行程'];
+
+  const dayLabels = new Set();
   for (const [dayIndex, day] of planDays.value.entries()) {
-    if (!day.dayLabel?.trim()) return `第 ${dayIndex + 1} 天缺少日期標籤`;
-    if (!day.items?.length) return `${day.dayLabel} 至少需要一個節點`;
+    const dayLabel = day.dayLabel?.trim();
+    const displayDay = dayLabel || `第 ${dayIndex + 1} 天`;
 
+    if (!dayLabel) errors.push(`第 ${dayIndex + 1} 天缺少日期標籤`);
+    if (dayLabel && dayLabels.has(dayLabel)) errors.push(`日期標籤「${dayLabel}」重複`);
+    if (dayLabel) dayLabels.add(dayLabel);
+    if (!day.items?.length) errors.push(`${displayDay} 至少需要一個節點`);
+
+    const nodeKeys = new Set();
     for (const [itemIndex, item] of day.items.entries()) {
-      if (!item.time?.trim()) return `${day.dayLabel} 第 ${itemIndex + 1} 筆缺少時間`;
-      if (!item.location?.trim()) return `${day.dayLabel} 第 ${itemIndex + 1} 筆缺少地點`;
+      const time = item.time?.trim();
+      const location = item.location?.trim();
+      const nodeLabel = `${displayDay} 第 ${itemIndex + 1} 筆`;
+
+      if (!time) errors.push(`${nodeLabel} 缺少時間`);
+      else if (!isValidPlanTime(time)) errors.push(`${nodeLabel} 時間格式需為 HH:mm，例如 08:40`);
+
+      if (!location) errors.push(`${nodeLabel} 缺少地點`);
+
+      if (!['ride', 'heavy', 'light'].includes(item.type)) {
+        errors.push(`${nodeLabel} 的類型不正確`);
+      }
+
+      const nodeKey = `${time}|${location}`.toLowerCase();
+      if (time && location && nodeKeys.has(nodeKey)) {
+        errors.push(`${displayDay} 有重複節點：${time} ${location}`);
+      }
+      if (time && location) nodeKeys.add(nodeKey);
     }
   }
 
-  return '';
+  return errors;
+}
+
+function getTripValidationErrors() {
+  const errors = [];
+
+  if (!form.value.title.trim()) errors.push('行程名稱為必填');
+  if (!['draft', 'published'].includes(form.value.status)) errors.push('發布狀態不正確');
+  if (!editingId.value && form.value.id.trim() && !normalizeTripId(form.value.id)) {
+    errors.push('行程 ID 格式不正確');
+  }
+  if (coverValidationError.value) errors.push(coverValidationError.value);
+  if (coverPreviewBroken.value) errors.push('封面圖片目前無法載入');
+  if (form.value.summary && form.value.summary.length > 160) errors.push('SEO / 分享文字需在 160 字以內');
+  if (form.value.weather.updatedAt?.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(form.value.weather.updatedAt.trim())) {
+    errors.push('天氣更新日期需為 YYYY-MM-DD');
+  }
+
+  return [...errors, ...getPlanValidationErrors()];
+}
+
+function isValidPlanTime(value) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function isValidImageUrl(value) {
+  const url = value.trim();
+  if (!url) return true;
+  if (url.startsWith('/')) return true;
+
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
 }
 
 function addPlanDay() {
@@ -620,6 +769,7 @@ function openForm(trip) {
       status: trip.status || 'published',
       coverImage: trip.coverImage || '',
       coverStoragePath: trip.coverStoragePath || '',
+      summary: trip.summary || '',
       weather: { ...createEmptyWeatherForm(), ...(trip.weather || {}) },
     };
     setPlanFromRaw(trip.plan || []);
@@ -629,8 +779,11 @@ function openForm(trip) {
     form.value = createEmptyTripForm();
     setPlanFromRaw(createDefaultPlan());
   }
-  coverFile.value = null;
+  currentDraftKey.value = getTripDraftKey(editingId.value || 'new');
+  restoreTripDraft();
+  clearSelectedCoverFile();
   coverStatus.value = '';
+  coverPreviewBroken.value = false;
   clearActivityRecordImport();
   showForm.value = true;
   formStatus.value = '';
@@ -642,6 +795,8 @@ function closeForm() {
   editingId.value = null;
   isAutoTripId.value = true;
   clearActivityRecordImport();
+  clearDraftTimer();
+  clearSelectedCoverFile();
 }
 
 function setStatus(msg, ok = true) {
@@ -651,12 +806,8 @@ function setStatus(msg, ok = true) {
 }
 
 async function saveTrip() {
-  if (!form.value.title.trim()) {
-    setStatus('行程名稱為必填', false);
-    return;
-  }
-  if (!jsonValid.value) {
-    setStatus(planError.value || '行程格式錯誤', false);
+  if (validationErrors.value.length) {
+    setStatus(validationErrors.value[0], false);
     return;
   }
 
@@ -680,12 +831,35 @@ async function saveTrip() {
     }
 
     const plan = normalizePlan(planDays.value);
-    const data = { ...form.value, plan, weather: normalizeWeather(form.value.weather) };
+    const data = {
+      ...form.value,
+      id: form.value.id.trim(),
+      title: form.value.title.trim(),
+      semester: form.value.semester.trim(),
+      days: form.value.days.trim(),
+      difficulty: form.value.difficulty.trim(),
+      coverImage: form.value.coverImage.trim(),
+      coverStoragePath: form.value.coverStoragePath.trim(),
+      summary: form.value.summary.trim(),
+      plan,
+      weather: normalizeWeather(form.value.weather),
+    };
+
+    if (coverFile.value) {
+      const uploaded = await uploadSelectedCoverFile(data.id.trim());
+      data.coverImage = uploaded.url;
+      data.coverStoragePath = uploaded.storagePath;
+      form.value.coverImage = uploaded.url;
+      form.value.coverStoragePath = uploaded.storagePath;
+    }
+
     if (!data.coverImage) delete data.coverImage;
     if (!data.coverStoragePath) delete data.coverStoragePath;
+    if (!data.summary?.trim()) delete data.summary;
     if (!data.weather) delete data.weather;
-    await setDoc(doc(db, 'trip', form.value.id.trim()), data);
+    await setDoc(doc(db, 'trip', data.id), data);
     setStatus('✅ 儲存成功！');
+    clearTripDraft({ silent: true });
     await loadTrips();
     closeForm();
   } catch (e) {
@@ -705,8 +879,35 @@ function normalizeWeather(weather) {
 }
 
 function onCoverFileChange(e) {
-  coverFile.value = e.target.files?.[0] || null;
+  const file = e.target.files?.[0] || null;
   coverStatus.value = '';
+  coverStatusClass.value = '';
+  coverPreviewBroken.value = false;
+  revokeCoverPreviewUrl();
+
+  if (!file) {
+    coverFile.value = null;
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    coverFile.value = null;
+    coverStatus.value = '請選擇圖片檔';
+    coverStatusClass.value = 'status-err';
+    if (coverFileInputRef.value) coverFileInputRef.value.value = '';
+    return;
+  }
+
+  if (file.size > MAX_COVER_FILE_SIZE) {
+    coverFile.value = null;
+    coverStatus.value = '圖片檔需小於 10MB';
+    coverStatusClass.value = 'status-err';
+    if (coverFileInputRef.value) coverFileInputRef.value.value = '';
+    return;
+  }
+
+  coverFile.value = file;
+  coverLocalPreviewUrl.value = URL.createObjectURL(file);
 }
 
 async function uploadCoverImage() {
@@ -715,14 +916,7 @@ async function uploadCoverImage() {
   isUploadingCover.value = true;
   coverStatus.value = '';
   try {
-    const uploaded = await uploadImageFile(coverFile.value, `trip-covers/${editingId.value}`, {
-      maxWidth: 1800,
-      quality: 0.86,
-    });
-
-    form.value.coverImage = uploaded.url;
-    form.value.coverStoragePath = uploaded.storagePath;
-
+    const uploaded = await uploadSelectedCoverFile(editingId.value);
     await updateDoc(doc(db, 'trip', editingId.value), {
       coverImage: uploaded.url,
       coverStoragePath: uploaded.storagePath,
@@ -730,7 +924,7 @@ async function uploadCoverImage() {
 
     coverStatus.value = '✅ 封面已上傳並更新';
     coverStatusClass.value = 'status-ok';
-    coverFile.value = null;
+    clearSelectedCoverFile();
     await loadTrips();
   } catch (e) {
     coverStatus.value = '封面上傳失敗：' + e.message;
@@ -738,6 +932,57 @@ async function uploadCoverImage() {
   } finally {
     isUploadingCover.value = false;
   }
+}
+
+async function uploadSelectedCoverFile(tripId) {
+  const uploaded = await uploadImageFile(coverFile.value, `trip-covers/${tripId}`, {
+    maxWidth: 1800,
+    quality: 0.86,
+  });
+
+  form.value.coverImage = uploaded.url;
+  form.value.coverStoragePath = uploaded.storagePath;
+  coverPreviewBroken.value = false;
+  return uploaded;
+}
+
+async function removeCoverImage() {
+  clearSelectedCoverFile();
+  form.value.coverImage = '';
+  form.value.coverStoragePath = '';
+  coverPreviewBroken.value = false;
+
+  if (!editingId.value) return;
+
+  try {
+    await updateDoc(doc(db, 'trip', editingId.value), {
+      coverImage: '',
+      coverStoragePath: '',
+    });
+    coverStatus.value = '已移除封面';
+    coverStatusClass.value = 'status-ok';
+    await loadTrips();
+  } catch (e) {
+    coverStatus.value = '移除封面失敗：' + e.message;
+    coverStatusClass.value = 'status-err';
+  }
+}
+
+function clearSelectedCoverFile() {
+  coverFile.value = null;
+  revokeCoverPreviewUrl();
+  if (coverFileInputRef.value) coverFileInputRef.value.value = '';
+}
+
+function revokeCoverPreviewUrl() {
+  if (!coverLocalPreviewUrl.value) return;
+  URL.revokeObjectURL(coverLocalPreviewUrl.value);
+  coverLocalPreviewUrl.value = '';
+}
+
+function markCoverPreviewBroken() {
+  if (coverLocalPreviewUrl.value) return;
+  coverPreviewBroken.value = true;
 }
 
 async function onActivityRecordFileChange(e) {
@@ -799,6 +1044,93 @@ function clearActivityRecordImport() {
   activityRecordStatusClass.value = '';
   isParsingRecord.value = false;
   if (recordFileInputRef.value) recordFileInputRef.value.value = '';
+}
+
+function getTripDraftKey(id) {
+  return `${DRAFT_STORAGE_PREFIX}${id || 'new'}`;
+}
+
+function scheduleTripDraftSave() {
+  if (!showForm.value || isRestoringDraft.value || !currentDraftKey.value || !import.meta.client) return;
+
+  clearDraftTimer();
+  draftSaveTimer = window.setTimeout(() => {
+    saveTripDraft();
+  }, DRAFT_SAVE_DELAY);
+}
+
+function saveTripDraft() {
+  if (!showForm.value || !currentDraftKey.value || !import.meta.client) return;
+
+  const savedAt = new Date().toISOString();
+  const payload = {
+    savedAt,
+    editingId: editingId.value,
+    isAutoTripId: isAutoTripId.value,
+    form: form.value,
+    plan: normalizePlan(planDays.value),
+  };
+
+  try {
+    localStorage.setItem(currentDraftKey.value, JSON.stringify(payload));
+    draftStatus.value = `本機草稿已自動儲存：${formatDraftTime(savedAt)}`;
+  } catch (e) {
+    draftStatus.value = '本機草稿儲存失敗，請確認瀏覽器儲存空間';
+  }
+}
+
+function restoreTripDraft() {
+  if (!currentDraftKey.value || !import.meta.client) return;
+
+  const rawDraft = localStorage.getItem(currentDraftKey.value);
+  if (!rawDraft) {
+    draftStatus.value = '';
+    return;
+  }
+
+  try {
+    const draft = JSON.parse(rawDraft);
+    isRestoringDraft.value = true;
+    form.value = {
+      ...createEmptyTripForm(),
+      ...(draft.form || {}),
+      weather: {
+        ...createEmptyWeatherForm(),
+        ...(draft.form?.weather || {}),
+      },
+    };
+    planDays.value = normalizePlan(draft.plan);
+    isAutoTripId.value = Boolean(draft.isAutoTripId);
+    planJsonError.value = '';
+    draftStatus.value = `已還原本機草稿：${formatDraftTime(draft.savedAt)}`;
+  } catch {
+    draftStatus.value = '本機草稿讀取失敗，建議清除後重新編輯';
+  } finally {
+    isRestoringDraft.value = false;
+  }
+}
+
+function clearTripDraft(options = {}) {
+  clearDraftTimer();
+  if (currentDraftKey.value && import.meta.client) {
+    localStorage.removeItem(currentDraftKey.value);
+  }
+  if (!options.silent) draftStatus.value = '本機草稿已清除';
+}
+
+function clearDraftTimer() {
+  if (!draftSaveTimer) return;
+  window.clearTimeout(draftSaveTimer);
+  draftSaveTimer = null;
+}
+
+function formatDraftTime(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleTimeString('zh-TW', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function movementTypeLabel(type) {
@@ -935,7 +1267,11 @@ async function deleteTrip(trip) {
 }
 
 onMounted(loadTrips);
-onBeforeUnmount(finishPlanItemDrag);
+onBeforeUnmount(() => {
+  finishPlanItemDrag();
+  clearDraftTimer();
+  revokeCoverPreviewUrl();
+});
 </script>
 
 <style scoped>
@@ -973,6 +1309,20 @@ onBeforeUnmount(finishPlanItemDrag);
 /* Form */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
 .form-grid .full-width { grid-column: 1 / -1; }
+.draft-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #eef7f2;
+  border: 1px solid #cfe5d7;
+  border-radius: 8px;
+  color: #1A432D;
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+}
 
 .field-row { display: flex; flex-direction: column; gap: 5px; }
 .field-row label { font-size: 0.82rem; color: #555; font-weight: 600; }
@@ -990,8 +1340,28 @@ onBeforeUnmount(finishPlanItemDrag);
 .hint-ok { color: #2e7d52; }
 .hint-err { color: #c0392b; }
 .json-editor { font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; line-height: 1.5; }
-.cover-preview { width: 120px; height: 80px; object-fit: cover; border-radius: 6px; margin-top: 6px; }
-.cover-upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.cover-manager {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 6px;
+}
+.cover-preview {
+  width: 160px;
+  height: 104px;
+  object-fit: cover;
+  border: 1px solid #e0e7e3;
+  border-radius: 8px;
+  background: #f2f5f3;
+}
+.cover-info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+.cover-upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cover-upload input { padding: 0; border: none; }
 .json-hint { font-weight: 600; margin-top: 4px; }
 
@@ -1253,6 +1623,16 @@ onBeforeUnmount(finishPlanItemDrag);
 .status-msg { font-size: 0.88rem; margin-bottom: 14px; }
 .status-ok { color: #2e7d52; }
 .status-err { color: #c0392b; }
+.validation-list {
+  margin: 0 0 14px;
+  padding: 12px 14px 12px 30px;
+  border: 1px solid #f4c8c8;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #c0392b;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
 
 .form-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .hint { color: #999; text-align: center; padding: 20px 0; }
@@ -1270,6 +1650,17 @@ onBeforeUnmount(finishPlanItemDrag);
   cursor: pointer; transition: background 0.2s;
 }
 .btn-secondary:hover { background: #ddd; }
+.btn-link {
+  border: none;
+  background: transparent;
+  color: #1A432D;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+}
 .btn-edit {
   background: #e8f0ff; color: #1a5276; border: none;
   padding: 6px 16px; border-radius: 7px; font-size: 0.85rem; cursor: pointer;
@@ -1289,6 +1680,9 @@ onBeforeUnmount(finishPlanItemDrag);
   .weather-grid { grid-template-columns: 1fr; }
   .weather-grid .full-width { grid-column: 1; }
   .id-row { align-items: stretch; flex-direction: column; }
+  .draft-bar,
+  .cover-manager { align-items: stretch; flex-direction: column; }
+  .cover-preview { width: 100%; height: auto; aspect-ratio: 16 / 10; }
   .plan-toolbar,
   .plan-day-header { align-items: stretch; flex-direction: column; }
   .plan-day-header input { max-width: none; }
