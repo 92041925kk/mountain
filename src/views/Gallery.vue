@@ -137,23 +137,38 @@ function compareTripsBySemester(a, b) {
   });
 }
 
+function isPublicTrip(trip) {
+  // Legacy trip records predate the status field and were public before drafts existed.
+  return trip.status !== 'draft';
+}
+
+async function loadPublicTrips() {
+  try {
+    return await getDocs(collection(db, "trip"));
+  } catch (error) {
+    if (error.code !== 'permission-denied') throw error;
+
+    return getDocs(query(
+      collection(db, "trip"),
+      where("status", "==", "published")
+    ));
+  }
+}
+
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
 onMounted(async () => {
   try {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('連線逾時')), 8000)
     );
-    const tripsQuery = query(
-      collection(db, "trip"),
-      where("status", "==", "published")
-    );
-    const querySnapshot = await Promise.race([getDocs(tripsQuery), timeout]);
+    const querySnapshot = await Promise.race([loadPublicTrips(), timeout]);
     
     trips.value = querySnapshot.docs
       .map((doc) => ({
         ...doc.data(),
         id: doc.id,
       }))
+      .filter(isPublicTrip)
       .sort(compareTripsBySemester);
 
     await preloadImages(
