@@ -71,7 +71,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -130,6 +130,13 @@ function reloadPage() {
   window.location.reload();
 }
 
+function compareTripsBySemester(a, b) {
+  return String(b.semester || '').localeCompare(String(a.semester || ''), 'zh-TW', {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
+
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
 onMounted(async () => {
   try {
@@ -138,15 +145,16 @@ onMounted(async () => {
     );
     const tripsQuery = query(
       collection(db, "trip"),
-      where("status", "==", "published"),
-      orderBy("semester", "desc")
+      where("status", "==", "published")
     );
     const querySnapshot = await Promise.race([getDocs(tripsQuery), timeout]);
     
-    trips.value = querySnapshot.docs.map((doc) => ({
-      ...doc.data(),
-      id: doc.id,
-    }));
+    trips.value = querySnapshot.docs
+      .map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }))
+      .sort(compareTripsBySemester);
 
     await preloadImages(
       trips.value.slice(0, 12).map(trip => trip.coverImage || defaultImg),
