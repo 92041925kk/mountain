@@ -100,7 +100,9 @@ async function handleLogin() {
 
 <style scoped>
 .admin-login-page {
+  box-sizing: border-box;
   min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,11 +112,23 @@ async function handleLogin() {
 .login-card {
   background: white;
   border-radius: 16px;
+  box-sizing: border-box;
   padding: 48px 40px;
-  width: 100%;
+  width: min(400px, calc(100vw - 48px));
   max-width: 400px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   text-align: center;
+}
+
+@media (max-width: 600px) {
+  .admin-login-page {
+    padding: 24px;
+  }
+
+  .login-card {
+    width: min(100%, 300px);
+    padding: 40px 28px;
+  }
 }
 
 .login-logo {

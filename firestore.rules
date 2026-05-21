@@ -6,13 +6,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isPublicCollection(collectionName) {
-      return collectionName in ['schedules', 'trip', 'photos', 'settings'];
+    match /trip/{tripId} {
+      allow read: if isSignedIn() || resource.data.status == 'published';
+      allow write: if isSignedIn();
     }
 
-    match /{collectionName}/{documentId} {
-      allow read: if isPublicCollection(collectionName);
-      allow write: if isPublicCollection(collectionName) && isSignedIn();
+    match /schedules/{scheduleId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /photos/{photoId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     match /admins/{uid} {

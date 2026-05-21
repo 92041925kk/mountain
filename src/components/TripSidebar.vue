@@ -69,6 +69,15 @@ defineProps({
 
 /* 響應式：手機版取消 sticky，讓它自然往下排 */
 @media (max-width: 900px) {
-  .trip-sidebar { position: static; }
+  .trip-sidebar {
+    position: static;
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .info-box {
+    box-sizing: border-box;
+    width: 100%;
+  }
 }
 </style>

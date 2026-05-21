@@ -71,7 +71,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -136,15 +136,17 @@ onMounted(async () => {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('連線逾時')), 8000)
     );
-    const tripsQuery = query(collection(db, "trip"), orderBy("semester", "desc"));
+    const tripsQuery = query(
+      collection(db, "trip"),
+      where("status", "==", "published"),
+      orderBy("semester", "desc")
+    );
     const querySnapshot = await Promise.race([getDocs(tripsQuery), timeout]);
     
-    trips.value = querySnapshot.docs
-      .map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-      }))
-      .filter((trip) => trip.status !== 'draft');
+    trips.value = querySnapshot.docs.map((doc) => ({
+      ...doc.data(),
+      id: doc.id,
+    }));
 
     await preloadImages(
       trips.value.slice(0, 12).map(trip => trip.coverImage || defaultImg),

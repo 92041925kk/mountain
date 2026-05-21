@@ -199,7 +199,9 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error("Firebase 連線錯誤:", error);
-    errorMsg.value = "資料讀取失敗，請檢查網路連線";
+    errorMsg.value = error.code === 'permission-denied'
+      ? "找不到這筆行程資料"
+      : "資料讀取失敗，請檢查網路連線";
   } finally {
     setTimeout(() => {
       isLoading.value = false;
@@ -256,8 +258,10 @@ function closeLightbox() {
 
 <style scoped>
 .container {
+  width: 100%;
   max-width: 1300px;
   margin: 0 auto;
+  box-sizing: border-box;
   padding: 0 40px; 
 }
 
@@ -267,7 +271,13 @@ function closeLightbox() {
   height: 45vh; background-size: cover; background-position: center;
   display: flex; align-items: center; color: white;
 }
-.trip-hero h1 { font-size: 3.5rem; text-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
+.trip-hero h1 {
+  font-size: clamp(2.1rem, 7vw, 3.5rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+}
 
 .trip-layout { display: flex; gap: 50px; padding: 50px 0; }
 .trip-main-content { flex: 2; }
@@ -471,8 +481,24 @@ function closeLightbox() {
 /* 🌟 修正：清除了舊的 .trip-sidebar 相關 CSS，保持程式碼簡潔 */
 
 @media (max-width: 900px) {
-  .trip-layout { flex-direction: column; }
-  .trip-hero h1 { font-size: 2.5rem; }
+  .container {
+    padding: 0 20px;
+  }
+
+  .trip-layout {
+    flex-direction: column;
+    gap: 28px;
+    padding: 36px 0;
+  }
+
+  .trip-main-content {
+    width: 100%;
+  }
+
+  .trip-hero {
+    min-height: 300px;
+    height: 42vh;
+  }
   
   .record-and-photo-layout {
     flex-direction: column; 
@@ -485,6 +511,21 @@ function closeLightbox() {
   .weather-grid,
   .timeline-photos {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .trip-hero h1 {
+    font-size: clamp(1.35rem, 6.5vw, 1.6rem);
+    word-break: break-all;
+  }
+
+  .trip-hero p {
+    line-height: 1.6;
+  }
+
+  .movement-legend-container {
+    gap: 12px;
   }
 }
 </style>
