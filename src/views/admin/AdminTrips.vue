@@ -347,8 +347,11 @@
 
         <div class="form-actions">
           <button class="btn-secondary" @click="closeForm">取消</button>
-          <button class="btn-primary" @click="saveTrip" :disabled="!canSave">
-            {{ isSaving ? '儲存中...' : (editingId ? '更新行程' : '建立行程') }}
+          <button class="btn-draft" @click="saveTrip('draft')" :disabled="!canSave">
+            {{ isSaving && form.status === 'draft' ? '建立草稿中...' : '建立草稿' }}
+          </button>
+          <button class="btn-primary" @click="saveTrip('published')" :disabled="!canSave">
+            {{ isSaving && form.status === 'published' ? '發布中...' : '發布' }}
           </button>
         </div>
       </section>
@@ -805,7 +808,9 @@ function setStatus(msg, ok = true) {
   if (ok) setTimeout(() => { formStatus.value = ''; }, 3000);
 }
 
-async function saveTrip() {
+async function saveTrip(status) {
+  form.value.status = status;
+
   if (validationErrors.value.length) {
     setStatus(validationErrors.value[0], false);
     return;
@@ -1650,6 +1655,16 @@ onBeforeUnmount(() => {
   cursor: pointer; transition: background 0.2s;
 }
 .btn-secondary:hover { background: #ddd; }
+.btn-draft {
+  background: #eef2f0; color: #1A432D; border: 1px solid #cbd8d0;
+  padding: 9px 18px; border-radius: 8px; font-size: 0.9rem;
+  font-weight: bold; cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+.btn-draft:hover:not(:disabled) {
+  background: #dde8e1;
+  border-color: #aebfb5;
+}
+.btn-draft:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-link {
   border: none;
   background: transparent;
