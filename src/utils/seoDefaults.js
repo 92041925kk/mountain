@@ -1,1 +1,2 @@
 export const DEFAULT_SHARE_IMAGE = 'https://firebasestorage.googleapis.com/v0/b/cymc2-7d93e.firebasestorage.app/o/OG%20Image%2F%E6%9C%AA%E5%91%BD%E5%90%8D%E8%A8%AD%E8%A8%88%20(3).jpg?alt=media&token=b8596fe9-d8ff-4120-ace1-ac75238427b6'
+export const FAVICON_IMAGE = 'https://firebasestorage.googleapis.com/v0/b/cymc2-7d93e.firebasestorage.app/o/OG%20Image%2F%E6%8A%95%E5%90%91.jpg?alt=media&token=6390b21f-f796-480a-a70c-be0f27aee180'
