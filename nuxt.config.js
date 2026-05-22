@@ -1,3 +1,5 @@
+import { DEFAULT_SHARE_IMAGE } from './src/utils/seoDefaults.js'
+
 export default defineNuxtConfig({
   ssr: false,
   srcDir: 'src/',
@@ -37,15 +39,15 @@ export default defineNuxtConfig({
           property: 'og:description',
           content: '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。',
         },
-        { property: 'og:image', content: '/favicon.ico' },
+        { property: 'og:image', content: DEFAULT_SHARE_IMAGE },
         { property: 'og:image:alt', content: '中原大學登山社' },
-        { name: 'twitter:card', content: 'summary' },
+        { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: '中原大學登山社' },
         {
           name: 'twitter:description',
           content: '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。',
         },
-        { name: 'twitter:image', content: '/favicon.ico' },
+        { name: 'twitter:image', content: DEFAULT_SHARE_IMAGE },
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico' },

@@ -109,6 +109,7 @@ import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import TripSidebar from '../components/TripSidebar.vue';
 import { preloadImages } from '../utils/preloadImages';
+import { DEFAULT_SHARE_IMAGE } from '../utils/seoDefaults';
 
 const route = useRoute();
 
@@ -134,7 +135,7 @@ const pageDescription = computed(() => {
   return truncateSeoText(trip.value.summary || buildTripDescription() || DEFAULT_DESCRIPTION);
 });
 
-const pageImage = computed(() => trip.value.coverImage || photos.value[0]?.url || '/favicon.ico');
+const pageImage = computed(() => trip.value.coverImage || photos.value[0]?.url || DEFAULT_SHARE_IMAGE);
 
 useHead(() => ({
   title: pageTitle.value,
@@ -146,7 +147,7 @@ useSeoMeta({
   ogTitle: () => pageTitle.value,
   ogDescription: () => pageDescription.value,
   ogImage: () => pageImage.value,
-  twitterCard: () => (pageImage.value === '/favicon.ico' ? 'summary' : 'summary_large_image'),
+  twitterCard: 'summary_large_image',
   twitterTitle: () => pageTitle.value,
   twitterDescription: () => pageDescription.value,
   twitterImage: () => pageImage.value,
