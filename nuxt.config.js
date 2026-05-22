@@ -1,4 +1,4 @@
-import { DEFAULT_SHARE_IMAGE, FAVICON_IMAGE } from './src/utils/seoDefaults.js'
+import { DEFAULT_SHARE_IMAGE } from './src/utils/seoDefaults.js'
 
 export default defineNuxtConfig({
   ssr: false,
@@ -50,7 +50,7 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: DEFAULT_SHARE_IMAGE },
       ],
       link: [
-        { rel: 'icon', type: 'image/jpeg', href: FAVICON_IMAGE },
+        { rel: 'icon', type: 'image/jpeg', href: '/favicon.jpg?v=2' },
       ],
     },
   },
