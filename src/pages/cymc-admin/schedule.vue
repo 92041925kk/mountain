@@ -12,5 +12,5 @@ definePageMeta({
   middleware: 'auth',
 })
 
-usePageSeo('行事曆管理')
+usePageSeo('行事曆管理', undefined, { robots: 'noindex, nofollow' })
 </script>

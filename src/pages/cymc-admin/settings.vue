@@ -12,5 +12,5 @@ definePageMeta({
   middleware: 'auth',
 })
 
-usePageSeo('網站設定')
+usePageSeo('網站設定', undefined, { robots: 'noindex, nofollow' })
 </script>

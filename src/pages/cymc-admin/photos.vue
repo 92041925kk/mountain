@@ -12,5 +12,5 @@ definePageMeta({
   middleware: 'auth',
 })
 
-usePageSeo('照片管理')
+usePageSeo('照片管理', undefined, { robots: 'noindex, nofollow' })
 </script>

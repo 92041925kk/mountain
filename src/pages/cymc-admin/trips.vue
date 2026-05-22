@@ -12,5 +12,5 @@ definePageMeta({
   middleware: 'auth',
 })
 
-usePageSeo('行程紀錄管理')
+usePageSeo('行程紀錄管理', undefined, { robots: 'noindex, nofollow' })
 </script>

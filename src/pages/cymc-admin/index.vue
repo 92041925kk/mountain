@@ -10,5 +10,5 @@ definePageMeta({
   isAdmin: true,
 })
 
-usePageSeo('後台登入', '中原大學登山社網站後台登入。')
+usePageSeo('後台登入', '中原大學登山社網站後台登入。', { robots: 'noindex, nofollow' })
 </script>

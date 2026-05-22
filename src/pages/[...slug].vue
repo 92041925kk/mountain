@@ -9,5 +9,5 @@ definePageMeta({
   name: 'NotFound',
 })
 
-usePageSeo('找不到頁面')
+usePageSeo('找不到頁面', undefined, { robots: 'noindex, nofollow' })
 </script>
