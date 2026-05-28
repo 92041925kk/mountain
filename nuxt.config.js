@@ -50,8 +50,21 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: DEFAULT_SHARE_IMAGE },
       ],
       link: [
+        { rel: 'shortcut icon', href: '/favicon.ico?v=2' },
         { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2' },
         { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
+      ],
+      script: [
+        {
+          type: 'application/ld+json',
+          children: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: '中原大學登山社',
+            alternateName: 'CYMC',
+            url: 'https://mountain-pi-eight.vercel.app/',
+          }),
+        },
       ],
     },
   },
