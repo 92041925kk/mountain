@@ -50,7 +50,8 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: DEFAULT_SHARE_IMAGE },
       ],
       link: [
-        { rel: 'icon', type: 'image/jpeg', href: '/favicon.jpg?v=2' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2' },
+        { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
       ],
     },
   },
