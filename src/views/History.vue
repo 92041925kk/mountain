@@ -28,7 +28,9 @@
               <span>傳承年數</span>
             </div>
             <div class="fact-item wide">
-              <strong>{{ historySummary.roots }}</strong>
+              <strong class="roots-title">
+                <span>中原理工學院</span><span>綠野登山社</span>
+              </strong>
               <span>山社前身</span>
             </div>
           </div>
@@ -308,6 +310,19 @@ function getDisplayTimeParts(displayTime) {
   color: #1A432D;
   font-size: clamp(1.55rem, 3vw, 2.2rem);
   line-height: 1.2;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.roots-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.12em;
+  max-width: 100%;
+}
+
+.roots-title span {
+  white-space: nowrap;
 }
 
 .fact-item span {
