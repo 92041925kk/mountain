@@ -109,7 +109,12 @@
             data-aos="fade-up"
           >
             <div class="timeline-date">
-              <strong>{{ entry.displayTime }}</strong>
+              <strong>
+                <template v-for="(part, partIndex) in getDisplayTimeParts(entry.displayTime)" :key="`${entry.time}-${partIndex}`">
+                  <span class="date-part">{{ part }}</span>
+                  <span v-if="partIndex < getDisplayTimeParts(entry.displayTime).length - 1" class="date-separator">/</span>
+                </template>
+              </strong>
               <span>{{ entry.phase }}</span>
             </div>
             <div class="timeline-content">
@@ -167,6 +172,13 @@ const filteredTimeline = computed(() => {
   if (activeCategory.value === 'all') return timelineEntries;
   return timelineEntries.filter((entry) => entry.category === activeCategory.value);
 });
+
+function getDisplayTimeParts(displayTime) {
+  return String(displayTime || '')
+    .split(/\s+\/\s+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
 </script>
 
 <style scoped>
@@ -259,6 +271,8 @@ const filteredTimeline = computed(() => {
   color: #1A432D;
   font-size: clamp(1.7rem, 4vw, 2.45rem);
   line-height: 1.25;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 .intro-copy p:not(.section-kicker) {
@@ -352,6 +366,8 @@ const filteredTimeline = computed(() => {
   margin: 0;
   color: #1A432D;
   line-height: 1.35;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 .era-panel h3 {
@@ -454,10 +470,19 @@ const filteredTimeline = computed(() => {
 }
 
 .timeline-date strong {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  justify-content: flex-end;
   color: #1A432D;
   font-size: 1rem;
   line-height: 1.5;
+  word-break: keep-all;
+}
+
+.date-part,
+.date-separator {
+  display: inline-block;
   white-space: nowrap;
 }
 
@@ -580,6 +605,10 @@ const filteredTimeline = computed(() => {
   .timeline-date {
     text-align: left;
     padding: 0;
+  }
+
+  .timeline-date strong {
+    justify-content: flex-start;
   }
 
   .timeline-content::before,

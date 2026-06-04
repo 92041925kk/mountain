@@ -42,7 +42,7 @@
           <h2>{{ siteSettings.homePhotoWallTitle }}</h2>
           <div class="divider"></div>
           <Transition name="photo-fade" mode="out-in">
-            <div class="photo-grid" :key="currentPage">
+            <div class="photo-grid" :key="photoBatchKey">
               <div
                 v-for="photo in displayedPhotos"
                 :key="photo.url"
@@ -119,11 +119,13 @@ const errorMsg = ref('');
 const upcomingTrips = ref([]);
 const photos = ref([]);
 const lightboxIndex = ref(null);
-const currentPage = ref(0);
+const displayedPhotos = ref([]);
+const photoBatchKey = ref(0);
 const heroImageUrl = ref('https://i.postimg.cc/RZgpMKth/20240421-053558(1)-(1).jpg');
 const siteSettings = ref({ ...defaultSiteSettings });
 let rotateTimer = null;
 let isSwitchingPhotoPage = false;
+let previousPhotoUrls = new Set();
 
 const PHOTO_PAGE_SIZE = 6;
 
@@ -138,10 +140,6 @@ const heroStyle = computed(() => ({
   backgroundImage: `linear-gradient(rgba(26, 67, 45, 0.5), rgba(26, 67, 45, 0.5)), url("${heroImageUrl.value}")`,
 }));
 
-const displayedPhotos = computed(() => {
-  return getPhotosForPage(currentPage.value);
-});
-
 function openLightboxByUrl(url) {
   const idx = photos.value.findIndex(p => p.url === url);
   if (idx !== -1) lightboxIndex.value = idx;
@@ -155,18 +153,6 @@ function lightboxNext() {
 }
 
 onUnmounted(() => { if (rotateTimer) clearInterval(rotateTimer); });
-
-function getPhotosForPage(page) {
-  const total = photos.value.length;
-  if (total === 0) return [];
-
-  const count = Math.min(PHOTO_PAGE_SIZE, total);
-  if (total <= PHOTO_PAGE_SIZE) return photos.value.slice(0, count);
-
-  return Array.from({ length: count }, (_, i) =>
-    photos.value[(page * PHOTO_PAGE_SIZE + i) % total]
-  );
-}
 
 function getUniquePhotos(items) {
   const seenUrls = new Set();
@@ -226,9 +212,10 @@ async function loadPhotoWall() {
     const limitCount = Math.min(60, Math.max(6, Number(siteSettings.value.homePhotoLimit) || defaultSiteSettings.homePhotoLimit));
 
     photos.value = (source === 'featured' && featuredPhotos.length ? featuredPhotos : allPhotos).slice(0, limitCount);
+    displayedPhotos.value = createRandomPhotoBatch();
+    previousPhotoUrls = new Set(displayedPhotos.value.map(photo => photo.url));
 
     if (photos.value.length > PHOTO_PAGE_SIZE) {
-      await preloadImages(getPhotosForPage(1).map(photo => photo.url), { timeoutMs: 6000 });
       rotateTimer = setInterval(showNextPhotoPage, photoRotationMs.value);
     }
   } catch (e) {
@@ -239,10 +226,32 @@ async function loadPhotoWall() {
 async function showNextPhotoPage() {
   if (isSwitchingPhotoPage || photos.value.length <= PHOTO_PAGE_SIZE) return;
   isSwitchingPhotoPage = true;
-  const nextPage = currentPage.value + 1;
-  await preloadImages(getPhotosForPage(nextPage).map(photo => photo.url), { timeoutMs: 6000 });
-  currentPage.value = nextPage;
+  const nextBatch = createRandomPhotoBatch(previousPhotoUrls);
+  await preloadImages(nextBatch.map(photo => photo.url), { timeoutMs: 6000 });
+  displayedPhotos.value = nextBatch;
+  previousPhotoUrls = new Set(nextBatch.map(photo => photo.url));
+  photoBatchKey.value += 1;
   isSwitchingPhotoPage = false;
+}
+
+function createRandomPhotoBatch(excludedUrls = new Set()) {
+  const total = photos.value.length;
+  if (total === 0) return [];
+
+  const count = Math.min(PHOTO_PAGE_SIZE, total);
+  const freshCandidates = photos.value.filter(photo => !excludedUrls.has(photo.url));
+  const source = freshCandidates.length >= count ? freshCandidates : photos.value;
+
+  return shufflePhotos(source).slice(0, count);
+}
+
+function shufflePhotos(items) {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 // 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成今年的 Date

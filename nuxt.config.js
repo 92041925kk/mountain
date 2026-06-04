@@ -1,5 +1,10 @@
 import { DEFAULT_SHARE_IMAGE } from './src/utils/seoDefaults.js'
 
+const SITE_URL = 'https://mountain-pi-eight.vercel.app/'
+const SITE_NAME = '中原大學登山社'
+const SITE_DESCRIPTION = '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。'
+const SITE_KEYWORDS = '中原大學登山社,中原登山社,中原大學,登山社,登山活動,隊伍紀錄,登山行程'
+
 export default defineNuxtConfig({
   ssr: false,
   srcDir: 'src/',
@@ -17,42 +22,44 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'zh-TW',
       },
-      title: '中原大學登山社',
+      title: SITE_NAME,
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
         {
           name: 'description',
-          content: '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。',
+          content: SITE_DESCRIPTION,
         },
         {
           name: 'keywords',
-          content: '中原大學登山社,中原登山社,中原大學,登山社,登山活動,隊伍紀錄,登山行程',
+          content: SITE_KEYWORDS,
         },
-        { name: 'author', content: '中原大學登山社' },
+        { name: 'author', content: SITE_NAME },
         { name: 'robots', content: 'index, follow' },
         { name: 'theme-color', content: '#1A432D' },
         { property: 'og:locale', content: 'zh_TW' },
         { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: '中原大學登山社' },
-        { property: 'og:title', content: '中原大學登山社' },
+        { property: 'og:url', content: SITE_URL },
+        { property: 'og:site_name', content: SITE_NAME },
+        { property: 'og:title', content: SITE_NAME },
         {
           property: 'og:description',
-          content: '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。',
+          content: SITE_DESCRIPTION,
         },
         { property: 'og:image', content: DEFAULT_SHARE_IMAGE },
-        { property: 'og:image:alt', content: '中原大學登山社' },
+        { property: 'og:image:alt', content: SITE_NAME },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: '中原大學登山社' },
+        { name: 'twitter:title', content: SITE_NAME },
         {
           name: 'twitter:description',
-          content: '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。',
+          content: SITE_DESCRIPTION,
         },
         { name: 'twitter:image', content: DEFAULT_SHARE_IMAGE },
       ],
       link: [
-        { rel: 'shortcut icon', href: '/favicon.ico?v=2' },
-        { rel: 'icon', type: 'image/png', href: '/favicon.png?v=2' },
-        { rel: 'apple-touch-icon', href: '/favicon.png?v=2' },
+        { rel: 'canonical', href: SITE_URL },
+        { rel: 'shortcut icon', href: '/favicon.ico?v=4' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png?v=4' },
+        { rel: 'apple-touch-icon', href: '/favicon.png?v=4' },
       ],
       script: [
         {
@@ -60,9 +67,17 @@ export default defineNuxtConfig({
           children: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'WebSite',
-            name: '中原大學登山社',
-            alternateName: 'CYMC',
-            url: 'https://mountain-pi-eight.vercel.app/',
+            '@id': `${SITE_URL}#website`,
+            name: SITE_NAME,
+            alternateName: ['中原登山社', 'CYMC'],
+            url: SITE_URL,
+            inLanguage: 'zh-TW',
+            publisher: {
+              '@type': 'Organization',
+              name: SITE_NAME,
+              url: SITE_URL,
+              logo: `${SITE_URL}favicon.png`,
+            },
           }),
         },
       ],

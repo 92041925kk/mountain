@@ -26,6 +26,7 @@
                 </span>
                 <span class="tag">{{ trip.semester }}</span>
                 <span class="tag">{{ trip.days }}</span>
+                <span class="tag" v-if="trip.locationRegion">{{ trip.locationRegion }}</span>
                 <span class="tag tag-diff">{{ trip.difficulty }}</span>
               </div>
             </div>
@@ -77,6 +78,13 @@
           <div class="field-row">
             <label>天數</label>
             <input v-model="form.days" placeholder="例：單日、三天兩夜" />
+          </div>
+          <div class="field-row">
+            <label>地區</label>
+            <select v-model="form.locationRegion">
+              <option value="">未標註</option>
+              <option v-for="region in TRIP_REGION_OPTIONS" :key="region" :value="region">{{ region }}</option>
+            </select>
           </div>
           <div class="field-row">
             <label>難度 / 類型</label>
@@ -407,6 +415,7 @@ const PLAN_DRAG_DELAY = 280;
 const DRAFT_STORAGE_PREFIX = 'cymc-admin-trip-draft:';
 const DRAFT_SAVE_DELAY = 700;
 const MAX_COVER_FILE_SIZE = 10 * 1024 * 1024;
+const TRIP_REGION_OPTIONS = ['北部', '中部', '南部', '東部', '離島', '海外', '其他'];
 
 const jsonValid = computed(() => {
   return !planJsonError.value && !getPlanValidationError();
@@ -476,6 +485,7 @@ function createEmptyTripForm() {
     title: '',
     semester: '',
     days: '',
+    locationRegion: '',
     difficulty: '',
     status: 'draft',
     coverImage: '',
@@ -768,6 +778,7 @@ function openForm(trip) {
       title: trip.title || '',
       semester: trip.semester || '',
       days: trip.days || '',
+      locationRegion: trip.locationRegion || trip.region || trip.area || '',
       difficulty: trip.difficulty || '',
       status: trip.status || 'published',
       coverImage: trip.coverImage || '',
@@ -842,6 +853,7 @@ async function saveTrip(status) {
       title: form.value.title.trim(),
       semester: form.value.semester.trim(),
       days: form.value.days.trim(),
+      locationRegion: form.value.locationRegion.trim(),
       difficulty: form.value.difficulty.trim(),
       coverImage: form.value.coverImage.trim(),
       coverStoragePath: form.value.coverStoragePath.trim(),
@@ -860,6 +872,7 @@ async function saveTrip(status) {
 
     if (!data.coverImage) delete data.coverImage;
     if (!data.coverStoragePath) delete data.coverStoragePath;
+    if (!data.locationRegion) delete data.locationRegion;
     if (!data.summary?.trim()) delete data.summary;
     if (!data.weather) delete data.weather;
     await setDoc(doc(db, 'trip', data.id), data);

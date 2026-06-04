@@ -10,6 +10,12 @@
           placeholder="搜尋隊伍名稱..." 
           class="search-input"
         />
+        <input
+          v-model="daysQuery"
+          type="text"
+          placeholder="搜尋天數，例如：單日、3天、三天兩夜"
+          class="search-input days-input"
+        />
         <div class="semester-filter">
           <label for="semester-select">選擇學期：</label>
           <select id="semester-select" v-model="selectedSemester">
@@ -22,6 +28,13 @@
           <select id="type-select" v-model="selectedType">
             <option value="all">全部類型</option>
             <option v-for="type in availableTypes" :key="type" :value="type">{{ type }}</option>
+          </select>
+        </div>
+        <div class="semester-filter">
+          <label for="region-select">選擇地區：</label>
+          <select id="region-select" v-model="selectedRegion">
+            <option value="all">全部地區</option>
+            <option v-for="region in availableRegions" :key="region" :value="region">{{ region }}</option>
           </select>
         </div>
       </div>
@@ -59,7 +72,9 @@
               <div class="card-content">
                 <span class="tag">{{ trip.difficulty || '山社隊伍' }}</span>
                 <h3>{{ trip.title }}</h3>
-                <p class="meta-info">天數：{{ trip.days || '未標註' }} | 學期：{{ trip.semester }}</p>
+                <p class="meta-info">
+                  天數：{{ trip.days || '未標註' }} | 地區：{{ getTripRegion(trip) || '未標註' }} | 學期：{{ trip.semester }}
+                </p>
               </div>
             </NuxtLink>
           </div>
@@ -85,9 +100,20 @@ const isLoading = ref(true);
 const errorMsg = ref('');
 const selectedSemester = ref('all');
 const selectedType = ref('all');
+const selectedRegion = ref('all');
 const searchQuery = ref('');
+const daysQuery = ref('');
 // 如果 Firebase 沒傳圖片，就用這張預設的山景圖
 const defaultImg = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80';
+const REGION_OPTIONS = ['北部', '中部', '南部', '東部', '離島', '海外', '其他'];
+const REGION_KEYWORDS = {
+  北部: ['北部', '台北', '臺北', '新北', '基隆', '桃園', '新竹', '宜蘭', '陽明山', '大屯', '雪山', '雪主', '雪北', '雪東', '北插', '塔曼', '李棟山', '霞喀羅'],
+  中部: ['中部', '苗栗', '台中', '臺中', '彰化', '南投', '合歡', '奇萊', '白姑', '武陵', '能高', '干卓萬', '丹大', '郡大', '奧萬大', '鳶嘴', '稍來'],
+  南部: ['南部', '雲林', '嘉義', '台南', '臺南', '高雄', '屏東', '玉山', '阿里山', '關山', '北大武', '南橫', '尾寮山', '小琉球'],
+  東部: ['東部', '花蓮', '台東', '臺東', '太魯閣', '秀姑巒', '馬博', '八通關', '向陽', '嘉明湖', '蘭嶼', '綠島'],
+  離島: ['離島', '澎湖', '金門', '馬祖', '蘭嶼', '綠島', '小琉球'],
+  海外: ['海外', '日本', '韓國', '尼泊爾', '海外遠征'],
+};
 
 // --- 取得所有學期選項 (動態生成且不重複) ---
 const availableSemesters = computed(() => {
@@ -100,6 +126,12 @@ const availableTypes = computed(() => {
   return [...new Set(types)].sort();
 });
 
+const availableRegions = computed(() => {
+  const regions = trips.value.map(getTripRegion).filter(Boolean);
+  const uniqueRegions = [...new Set(regions)];
+  return REGION_OPTIONS.filter(region => uniqueRegions.includes(region));
+});
+
 // --- 篩選後的隊伍列表 ---
 const filteredTrips = computed(() => {
   let result = trips.value;
@@ -109,9 +141,24 @@ const filteredTrips = computed(() => {
   if (selectedType.value !== 'all') {
     result = result.filter(t => t.difficulty === selectedType.value);
   }
+  if (selectedRegion.value !== 'all') {
+    result = result.filter(t => getTripRegion(t) === selectedRegion.value);
+  }
   const q = searchQuery.value.trim().toLowerCase();
   if (q) {
     result = result.filter(t => t.title?.toLowerCase().includes(q));
+  }
+  const daysText = normalizeSearchText(daysQuery.value);
+  if (daysText) {
+    const targetDays = parseDayCount(daysText);
+    result = result.filter((trip) => {
+      const tripDays = normalizeSearchText(trip.days);
+      if (!tripDays) return false;
+      if (tripDays.includes(daysText)) return true;
+
+      const tripDayCount = parseDayCount(tripDays);
+      return targetDays !== null && tripDayCount !== null && targetDays === tripDayCount;
+    });
   }
   return result;
 });
@@ -140,6 +187,61 @@ function compareTripsBySemester(a, b) {
 function isPublicTrip(trip) {
   // Legacy trip records predate the status field and were public before drafts existed.
   return trip.status !== 'draft';
+}
+
+function getTripRegion(trip) {
+  const explicitRegion = String(trip.locationRegion || trip.region || trip.area || '').trim();
+  if (REGION_OPTIONS.includes(explicitRegion)) return explicitRegion;
+
+  const searchableText = [
+    trip.title,
+    trip.summary,
+    trip.difficulty,
+    ...(Array.isArray(trip.plan)
+      ? trip.plan.flatMap(day => (day.items || []).map(item => `${item.location || ''} ${item.info || ''}`))
+      : []),
+  ].join(' ');
+
+  return inferRegion(searchableText);
+}
+
+function inferRegion(text) {
+  const source = String(text || '').toLowerCase();
+  return REGION_OPTIONS.find(region =>
+    REGION_KEYWORDS[region]?.some(keyword => source.includes(keyword.toLowerCase()))
+  ) || '';
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+}
+
+function parseDayCount(value) {
+  const text = normalizeSearchText(value);
+  if (!text) return null;
+  if (/(單日|一日|1日|1天)/.test(text)) return 1;
+
+  const digitMatch = text.match(/(\d+)\s*(天|日)/);
+  if (digitMatch) return Number(digitMatch[1]);
+
+  const chineseDigits = {
+    一: 1,
+    二: 2,
+    兩: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10,
+  };
+  const chineseMatch = text.match(/([一二兩三四五六七八九十])天/);
+  return chineseMatch ? chineseDigits[chineseMatch[1]] : null;
 }
 
 async function loadPublicTrips() {
@@ -256,6 +358,9 @@ onMounted(async () => {
   flex-direction: column;
   gap: 42px;
 }
+.days-input {
+  width: 300px;
+}
 
 .album-section {
   display: flex;
@@ -315,6 +420,10 @@ onMounted(async () => {
 
 /* 當螢幕寬度小於 600px (例如手機) 時 -> 變 1 個一排 */
 @media (max-width: 600px) {
+  .search-input,
+  .days-input {
+    width: 100%;
+  }
   .trip-grid {
     grid-template-columns: repeat(1, 1fr);
   }
