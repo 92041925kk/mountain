@@ -321,7 +321,12 @@ function getDisplayTimeParts(displayTime) {
   max-width: 100%;
 }
 
-.roots-title span {
+.fact-item .roots-title span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  margin-top: 0;
   white-space: nowrap;
 }
 
