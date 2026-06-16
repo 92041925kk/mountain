@@ -22,6 +22,11 @@ body {
   padding-top: 70px; /* 避開固定導覽列 */
 }
 
+/* 後台頁面沒有固定導覽列，移除頂部預留空白 */
+body.admin-mode {
+  padding-top: 0;
+}
+
 /* 導覽列 Navbar (因為全站都會用到) */
 .navbar {
   position: fixed;

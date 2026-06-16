@@ -7,17 +7,38 @@
       <!-- 行程列表 -->
       <section class="admin-section">
         <div class="section-header">
-          <h3>所有行程紀錄（{{ trips.length }} 筆）</h3>
+          <h3>所有行程紀錄（{{ filteredTrips.length }} / {{ trips.length }} 筆）</h3>
           <div class="header-actions">
             <button class="btn-secondary" @click="loadTrips">重新整理</button>
             <button class="btn-primary" @click="openForm(null)">＋ 新增行程</button>
           </div>
         </div>
 
+        <div class="trip-filters" v-if="trips.length">
+          <input
+            v-model="tripSearch"
+            class="trip-search"
+            placeholder="搜尋行程名稱..."
+          />
+          <select v-model="tripSemesterFilter" class="trip-semester-select">
+            <option value="all">全部學期</option>
+            <option v-for="sem in availableSemesters" :key="sem" :value="sem">{{ sem }}</option>
+          </select>
+          <button
+            class="btn-link"
+            type="button"
+            v-if="tripSearch || tripSemesterFilter !== 'all'"
+            @click="clearTripFilters"
+          >
+            清除篩選
+          </button>
+        </div>
+
         <div v-if="isFetching" class="hint">載入中...</div>
         <div v-else-if="trips.length === 0" class="hint">尚無行程紀錄</div>
+        <div v-else-if="filteredTrips.length === 0" class="hint">找不到符合條件的行程</div>
         <div v-else class="trips-list">
-          <div v-for="trip in trips" :key="trip.id" class="trip-row">
+          <div v-for="trip in filteredTrips" :key="trip.id" class="trip-row">
             <div class="trip-meta">
               <span class="trip-title">{{ trip.title }}</span>
               <div class="trip-tags">
@@ -378,6 +399,8 @@ import { extractActivityRecordFromPdf } from '../../utils/activityRecordPdf';
 import { applyMovementTypeToDay } from '../../utils/activityRecordParser';
 
 const trips = ref([]);
+const tripSearch = ref('');
+const tripSemesterFilter = ref('all');
 const isFetching = ref(false);
 const isSaving = ref(false);
 const showForm = ref(false);
@@ -440,6 +463,29 @@ const planSummary = computed(() => {
   const itemCount = planDays.value.reduce((sum, day) => sum + (day.items?.length || 0), 0);
   return `${planDays.value.length} 天，${itemCount} 個節點`;
 });
+
+const availableSemesters = computed(() => {
+  const sems = trips.value.map(trip => trip.semester).filter(Boolean);
+  return [...new Set(sems)].sort().reverse();
+});
+
+const filteredTrips = computed(() => {
+  const keyword = tripSearch.value.trim().toLowerCase();
+  return trips.value.filter((trip) => {
+    if (tripSemesterFilter.value !== 'all' && trip.semester !== tripSemesterFilter.value) {
+      return false;
+    }
+    if (keyword && !String(trip.title || '').toLowerCase().includes(keyword)) {
+      return false;
+    }
+    return true;
+  });
+});
+
+function clearTripFilters() {
+  tripSearch.value = '';
+  tripSemesterFilter.value = 'all';
+}
 
 const planJson = computed({
   get() {
@@ -1306,6 +1352,36 @@ onBeforeUnmount(() => {
 .section-header h3 { margin: 0; }
 .header-actions { display: flex; gap: 10px; }
 
+.trip-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.trip-search {
+  flex: 1;
+  min-width: 180px;
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+}
+.trip-search:focus { outline: none; border-color: #1A432D; }
+.trip-semester-select {
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  background: white;
+  color: #1A432D;
+  font-weight: 600;
+  cursor: pointer;
+}
+.trip-semester-select:focus { outline: none; border-color: #1A432D; }
+
 .trips-list { display: flex; flex-direction: column; gap: 10px; }
 .trip-row {
   display: flex; justify-content: space-between; align-items: center;
@@ -1703,6 +1779,8 @@ onBeforeUnmount(() => {
 .btn-del:hover { background: #f5c6c6; }
 
 @media (max-width: 600px) {
+  .trip-filters { flex-direction: column; align-items: stretch; }
+  .trip-search, .trip-semester-select { width: 100%; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .full-width { grid-column: 1; }
   .weather-grid { grid-template-columns: 1fr; }
