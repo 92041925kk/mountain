@@ -43,7 +43,19 @@
             <div class="item-fields">
               <div class="field-row">
                 <label>日期</label>
-                <input v-model="item.date" placeholder="例：5/1-5/3" />
+                <input
+                  v-model="item.date"
+                  placeholder="例：5/1 或 5/1-5/3"
+                  :class="{ 'input-warn': item.date && !isValidScheduleDate(item.date) }"
+                />
+                <span class="date-hint" :class="{ 'date-hint-warn': item.date && !isValidScheduleDate(item.date) }">
+                  <template v-if="item.date && !isValidScheduleDate(item.date)">
+                    ⚠️ 格式可能有誤，請用「月/日」如 5/1 或 5/1-5/3，首頁才抓得到
+                  </template>
+                  <template v-else>
+                    請用「月/日」格式，例：5/1、5/1-5/3（不要寫「5月1日」）
+                  </template>
+                </span>
               </div>
               <div class="field-row">
                 <label>行程名稱</label>
@@ -129,6 +141,17 @@ function createNew() {
   isLoaded.value = true;
   missingSemester.value = '';
   statusMsg.value = '';
+}
+
+// 與首頁 Home.vue 解析行事曆日期的邏輯一致：取第一段、需為「月/日」
+function isValidScheduleDate(dateStr) {
+  const firstPart = String(dateStr || '').split('-')[0].trim();
+  const parts = firstPart.split('/');
+  if (parts.length < 2) return false;
+  const month = Number(parts[0]);
+  const day = Number(parts[1]);
+  return Number.isInteger(month) && month >= 1 && month <= 12
+    && Number.isInteger(day) && day >= 1 && day <= 31;
 }
 
 function addItem() {
@@ -237,6 +260,10 @@ async function saveSchedule() {
   font-size: 0.92rem; font-family: inherit; resize: vertical;
 }
 .field-row input:focus, .field-row textarea:focus { outline: none; border-color: #1A432D; }
+.field-row input.input-warn { border-color: #e0a106; background: #fffdf5; }
+
+.date-hint { font-size: 0.75rem; color: #999; }
+.date-hint-warn { color: #b9770a; font-weight: 600; }
 
 .save-row { display: flex; justify-content: space-between; margin-top: 4px; }
 .hint { color: #999; text-align: center; padding: 20px 0; }

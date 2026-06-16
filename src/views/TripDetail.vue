@@ -109,6 +109,7 @@ import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import TripSidebar from '../components/TripSidebar.vue';
 import { preloadImages } from '../utils/preloadImages';
+import { withTimeout } from '../utils/withTimeout';
 import { DEFAULT_SHARE_IMAGE } from '../utils/seoDefaults';
 
 const route = useRoute();
@@ -179,11 +180,8 @@ onMounted(async () => {
   const tripId = route.query.id || 'hehuan-nw-2026';
 
   try {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('連線逾時')), 8000)
-    );
     const docRef = doc(db, "trip", tripId);
-    const docSnap = await Promise.race([getDoc(docRef), timeout]);
+    const docSnap = await withTimeout(getDoc(docRef));
 
     if (docSnap.exists()) {
       const data = docSnap.data();

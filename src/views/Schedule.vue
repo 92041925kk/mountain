@@ -5,7 +5,7 @@
 
     <div v-if="errorMsg && !isLoading" class="error-banner">
       <p>⚠️ {{ errorMsg }}</p>
-      <button class="btn-retry" @click="reloadPage">重新載入</button>
+      <button class="btn-retry" @click="() => window.location.reload()">重新載入</button>
     </div>
 
     <template v-if="!isLoading && !errorMsg">
@@ -80,6 +80,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 defineOptions({ name: 'Schedule' });
 import { db } from '../firebase';
+import { withTimeout } from '../utils/withTimeout';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import PageHeader from '../components/PageHeader.vue';
 import { preloadImages } from '../utils/preloadImages';
@@ -109,19 +110,12 @@ function isValidFacebookUrl(url) {
   return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
 }
 
-function reloadPage() {
-  window.location.reload();
-}
-
 // --- 初始化抓取資料 ---
 onMounted(async () => {
   try {
     siteSettings.value = await getSiteSettings();
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('連線逾時')), 8000)
-    );
     const docRef = doc(db, "schedules", siteSettings.value.currentSemester);
-    const docSnap = await Promise.race([getDoc(docRef), timeout]);
+    const docSnap = await withTimeout(getDoc(docRef));
     if (docSnap.exists()) {
       scheduleData.value = docSnap.data();
     }

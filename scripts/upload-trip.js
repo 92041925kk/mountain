@@ -6,7 +6,7 @@ import path from 'path';
 const serviceAccount = JSON.parse(fs.readFileSync('./serviceAccountKey.json', 'utf8'));
 
 // 2. 讀取「單一隊伍行程」JSON
-const tripData = JSON.parse(fs.readFileSync('./src/data/trip_detail.json', 'utf8'));
+const tripData = JSON.parse(fs.readFileSync('./scripts/trip_detail.json', 'utf8'));
 
 // 初始化 Firebase
 if (!admin.apps.length) {

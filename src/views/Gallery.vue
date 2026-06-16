@@ -43,7 +43,7 @@
 
       <div v-else-if="errorMsg" class="error-banner">
         <p>⚠️ {{ errorMsg }}</p>
-        <button class="btn-retry" @click="reloadPage">重新載入</button>
+        <button class="btn-retry" @click="() => window.location.reload()">重新載入</button>
       </div>
         
       <div class="album-list" v-else>
@@ -91,6 +91,8 @@ import { db } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import PageHeader from '../components/PageHeader.vue';
 import { preloadImages } from '../utils/preloadImages';
+import { withTimeout } from '../utils/withTimeout';
+import { useDebounce } from '../composables/useDebounce';
 
 defineOptions({ name: 'Gallery' });
 
@@ -103,6 +105,8 @@ const selectedType = ref('all');
 const selectedRegion = ref('all');
 const searchQuery = ref('');
 const daysQuery = ref('');
+const debouncedSearch = useDebounce(searchQuery);
+const debouncedDaysQuery = useDebounce(daysQuery);
 // 如果 Firebase 沒傳圖片，就用這張預設的山景圖
 const defaultImg = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80';
 const REGION_OPTIONS = ['北部', '中部', '南部', '東部', '離島', '海外', '其他'];
@@ -144,11 +148,11 @@ const filteredTrips = computed(() => {
   if (selectedRegion.value !== 'all') {
     result = result.filter(t => getTripRegion(t) === selectedRegion.value);
   }
-  const q = searchQuery.value.trim().toLowerCase();
+  const q = debouncedSearch.value.trim().toLowerCase();
   if (q) {
     result = result.filter(t => t.title?.toLowerCase().includes(q));
   }
-  const daysText = normalizeSearchText(daysQuery.value);
+  const daysText = normalizeSearchText(debouncedDaysQuery.value);
   if (daysText) {
     const targetDays = parseDayCount(daysText);
     result = result.filter((trip) => {
@@ -172,10 +176,6 @@ const groupedTrips = computed(() => {
   });
   return [...groups.entries()].map(([semester, groupTrips]) => ({ semester, trips: groupTrips }));
 });
-
-function reloadPage() {
-  window.location.reload();
-}
 
 function compareTripsBySemester(a, b) {
   return String(b.semester || '').localeCompare(String(a.semester || ''), 'zh-TW', {
@@ -260,10 +260,7 @@ async function loadPublicTrips() {
 // --- 🌟 生命週期：組件載入時去 Firebase 抓資料 ---
 onMounted(async () => {
   try {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('連線逾時')), 8000)
-    );
-    const querySnapshot = await Promise.race([loadPublicTrips(), timeout]);
+    const querySnapshot = await withTimeout(loadPublicTrips());
     
     trips.value = querySnapshot.docs
       .map((doc) => ({

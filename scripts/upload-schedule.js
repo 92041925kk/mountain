@@ -5,7 +5,7 @@ import fs from 'fs';
 const serviceAccount = JSON.parse(fs.readFileSync('./serviceAccountKey.json', 'utf8'));
 
 // 2. 讀取你準備好的行事曆資料
-const scheduleData = JSON.parse(fs.readFileSync('./src/data/schedule.json', 'utf8'));
+const scheduleData = JSON.parse(fs.readFileSync('./scripts/schedule.json', 'utf8'));
 
 // 3. 初始化 Firebase Admin
 admin.initializeApp({

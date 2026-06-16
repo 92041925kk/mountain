@@ -5,7 +5,7 @@
 
     <div v-if="errorMsg && !isLoading" class="error-banner">
       <p>⚠️ {{ errorMsg }}</p>
-      <button class="btn-retry" @click="reloadPage">重新載入</button>
+      <button class="btn-retry" @click="() => window.location.reload()">重新載入</button>
     </div>
 
     <template v-if="!isLoading">
@@ -110,6 +110,7 @@ import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import { preloadImages } from '../utils/preloadImages';
+import { withTimeout } from '../utils/withTimeout';
 import { defaultSiteSettings, getSiteSettings } from '../utils/siteSettings';
 
 defineOptions({ name: 'Home' });
@@ -167,10 +168,6 @@ function isValidFacebookUrl(url) {
   return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
 }
 
-function reloadPage() {
-  window.location.reload();
-}
-
 async function loadHeroImage() {
   try {
     heroImageUrl.value = await getDownloadURL(storageRef(storage, siteSettings.value.homeHeroStoragePath));
@@ -180,11 +177,8 @@ async function loadHeroImage() {
 }
 
 async function loadUpcomingTrips() {
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('連線逾時')), 8000)
-  );
   const docRef = doc(db, 'schedules', siteSettings.value.currentSemester);
-  const docSnap = await Promise.race([getDoc(docRef), timeout]);
+  const docSnap = await withTimeout(getDoc(docRef));
 
   if (docSnap.exists()) {
     const data = docSnap.data();
@@ -254,9 +248,9 @@ function shufflePhotos(items) {
   return shuffled;
 }
 
-// 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成今年的 Date
+// 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成 Date
+// 若計算出的日期已超過 6 個月前，則視為下一年度的行程
 function parseScheduleDate(dateStr) {
-  // 取第一個日期部分，例如 "5/1-5/3" → "5/1"，"3/7-8" → "3/7"
   const firstPart = dateStr.split('-')[0].trim();
   const parts = firstPart.split('/');
   if (parts.length < 2) return null;
@@ -264,17 +258,19 @@ function parseScheduleDate(dateStr) {
   const day = parseInt(parts[1], 10);
   if (isNaN(month) || isNaN(day)) return null;
   const now = new Date();
-  return new Date(now.getFullYear(), month - 1, day);
+  const date = new Date(now.getFullYear(), month - 1, day);
+  if (now - date > 180 * 24 * 60 * 60 * 1000) {
+    return new Date(now.getFullYear() + 1, month - 1, day);
+  }
+  return date;
 }
 
 onMounted(async () => {
   try {
     siteSettings.value = await getSiteSettings();
     await Promise.all([loadHeroImage(), loadUpcomingTrips(), loadPhotoWall()]);
-    await preloadImages([
-      heroImageUrl.value,
-      ...displayedPhotos.value.map(photo => photo.url),
-    ], { timeoutMs: 10000 });
+    // 只等待 Hero 圖載入完成再顯示頁面，照片牆圖片已有 CSS 淡入效果不需要阻塞
+    await preloadImages([heroImageUrl.value], { timeoutMs: 8000 });
   } catch (e) {
     console.error('首頁載入即將出發隊伍失敗:', e);
     errorMsg.value = '載入失敗，請檢查網路連線後重新整理';
@@ -352,7 +348,6 @@ onMounted(async () => {
   font-size: 2rem;
   line-height: 1.3;
   margin-bottom: 15px;
-  white-space: nowrap;
 }
 
 /* 點綴用的小裝飾線 */
