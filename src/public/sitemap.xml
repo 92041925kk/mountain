@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://mountain-pi-eight.vercel.app/</loc>
+    <loc>https://cycu-mountainclub.com/</loc>
   </url>
   <url>
-    <loc>https://mountain-pi-eight.vercel.app/history</loc>
+    <loc>https://cycu-mountainclub.com/history</loc>
   </url>
   <url>
-    <loc>https://mountain-pi-eight.vercel.app/gallery</loc>
+    <loc>https://cycu-mountainclub.com/gallery</loc>
   </url>
   <url>
-    <loc>https://mountain-pi-eight.vercel.app/schedule</loc>
+    <loc>https://cycu-mountainclub.com/schedule</loc>
   </url>
   <url>
-    <loc>https://mountain-pi-eight.vercel.app/join</loc>
+    <loc>https://cycu-mountainclub.com/join</loc>
   </url>
   <url>
-    <loc>https://mountain-pi-eight.vercel.app/faq</loc>
+    <loc>https://cycu-mountainclub.com/faq</loc>
+  </url>
+  <url>
+    <loc>https://cycu-mountainclub.com/trip</loc>
   </url>
 </urlset>

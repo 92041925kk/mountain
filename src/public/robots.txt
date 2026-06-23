@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: /cymc-admin/
 
-Sitemap: https://mountain-pi-eight.vercel.app/sitemap.xml
+Sitemap: https://cycu-mountainclub.com/sitemap.xml

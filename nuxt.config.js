@@ -1,6 +1,6 @@
 import { DEFAULT_SHARE_IMAGE } from './src/utils/seoDefaults.js'
 
-const SITE_URL = 'https://cymc2-7d93e.web.app/'
+const SITE_URL = 'https://cycu-mountainclub.com/'
 const SITE_NAME = '中原大學登山社'
 const SITE_DESCRIPTION = '中原大學登山社官方網站，收錄社史、學期隊伍、行程回顧、照片與入社資訊。'
 const SITE_KEYWORDS = '中原大學登山社,中原登山社,中原大學,登山社,登山活動,隊伍紀錄,登山行程'
