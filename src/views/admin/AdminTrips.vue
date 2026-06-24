@@ -4,6 +4,17 @@
 
     <main class="admin-main">
 
+      <AdminHelpPanel title="操作說明：怎麼新增一筆出隊行程紀錄？">
+        <p>這裡管理的是「<strong>隊伍回顧</strong>」頁的詳細行程紀錄（和「行事曆管理」的隊伍清單不同）。按「＋ 新增行程」後：</p>
+        <ul>
+          <li>先填<strong>基本資料</strong>：行程名稱、學期、天數、地區、難度／類型。</li>
+          <li><strong>行程節點</strong>可以手動一筆筆新增，也可以上傳「<strong>活動記錄紙 PDF</strong>」自動轉成表格（套用前可調整每天的輕裝／重裝）。</li>
+          <li>摘要留空時，系統會自動用學期、天數、難度與節點產生。</li>
+        </ul>
+        <p>編輯到一半不會弄丟：系統會<strong>自動暫存到這台電腦</strong>，下次打開會問要不要還原（也可手動「清除本機草稿」）。</p>
+        <p class="help-note">完成後選發布狀態：<strong>草稿</strong>＝不顯示在前台、之後可繼續編輯；<strong>發布</strong>＝公開在「隊伍回顧」頁。新增行程預設為草稿。</p>
+      </AdminHelpPanel>
+
       <!-- 行程列表 -->
       <section class="admin-section">
         <div class="section-header">
@@ -394,6 +405,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { collection, getDoc, getDocs, setDoc, deleteDoc, doc, orderBy, query, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
+import AdminHelpPanel from '../../components/admin/AdminHelpPanel.vue';
 import { uploadImageFile } from '../../utils/imageUpload';
 import { extractActivityRecordFromPdf } from '../../utils/activityRecordPdf';
 import { applyMovementTypeToDay } from '../../utils/activityRecordParser';

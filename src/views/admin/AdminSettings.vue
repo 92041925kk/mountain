@@ -3,6 +3,18 @@
     <AdminHeader title="網站設定" />
 
     <main class="admin-main">
+
+      <AdminHelpPanel title="操作說明：網站設定能改什麼？">
+        <p>這頁集中管理全站的文字與設定，改完拉到最底按「<strong>儲存設定</strong>」即生效（前台重新整理就會看到）。</p>
+        <ul>
+          <li><strong>目前學期</strong>（如 <code>114-2</code>）：決定首頁「即將出發」與「這學期隊伍」要抓哪個學期的行事曆，<strong>每學期初記得更新</strong>。</li>
+          <li><strong>首頁設定</strong>：改首頁標題、標語、介紹文字等。</li>
+          <li><strong>首頁封面 Storage 路徑</strong>：填 Firebase Storage 裡的物件路徑（例 <code>photos/home/xxx.jpg</code>，不用加 <code>gs://</code>）。照片先在「照片管理」上傳，再把路徑貼來這裡。</li>
+          <li><strong>FAQ 常見問題</strong>：新增／修改顯示在 FAQ 頁的問答。</li>
+        </ul>
+        <p class="help-note">每學期初三件事：①改「目前學期」 ②到「行事曆管理」建立新學期並填行程 ③確認首頁「即將出發」有正確顯示。</p>
+      </AdminHelpPanel>
+
       <section class="admin-section">
         <h3>基本設定</h3>
 
@@ -130,6 +142,7 @@ import { onMounted, ref } from 'vue';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
+import AdminHelpPanel from '../../components/admin/AdminHelpPanel.vue';
 import { clearSiteSettingsCache, defaultSiteSettings } from '../../utils/siteSettings';
 
 const form = ref({ ...defaultSiteSettings });

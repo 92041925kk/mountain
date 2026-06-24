@@ -3,6 +3,17 @@
     <AdminHeader title="照片管理" />
 
     <main class="admin-main">
+
+      <AdminHelpPanel title="操作說明：怎麼上傳與管理照片？">
+        <ul>
+          <li><strong>上傳</strong>：把圖片拖進上傳區或按「選擇圖片」（可一次多張），系統會自動壓縮後上傳。</li>
+          <li><strong>說明 / 行程 ID / 位置</strong>（皆選填）：填了之後，現有照片區可用來搜尋與篩選；「行程 ID」對應「行程紀錄管理」那筆的代號，綁定後照片會跟該行程關聯。</li>
+          <li><strong>首頁精選</strong>：勾選後這張才會出現在<strong>首頁照片牆</strong>；「首頁排序」數字越小越前面（未勾選不影響）。</li>
+        </ul>
+        <p>已上傳的照片可在下方「現有照片」逐張<strong>編輯</strong>說明、綁定行程、改首頁精選，或<strong>刪除</strong>。</p>
+        <p class="help-note">換首頁封面不是在這裡：請到「<strong>網站設定 → 首頁封面</strong>」貼上封面照片的路徑。照片大小建議小於 15MB、格式用常見的 jpg／png。</p>
+      </AdminHelpPanel>
+
       <section class="admin-section">
         <h3>上傳新照片</h3>
         <div class="upload-area" @dragover.prevent @drop.prevent="onDrop">
@@ -144,6 +155,7 @@
 <script setup>
 import { onMounted } from 'vue';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
+import AdminHelpPanel from '../../components/admin/AdminHelpPanel.vue';
 import { useAdminPhotos } from '../../composables/useAdminPhotos';
 
 const {

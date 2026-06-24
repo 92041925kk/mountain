@@ -84,13 +84,39 @@
               <div class="recent-card-body">
                 <span class="recent-tag">{{ trip.date }}</span>
                 <h3>{{ trip.title }}</h3>
-                <a 
-                  v-if="isValidFacebookUrl(trip.facebook_url)"
-                  :href="trip.facebook_url.trim()"
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="btn-fb"
-                >查看 FB 貼文</a>
+
+                <div class="recent-card-actions">
+                  <!-- 倒隊（幹部手動切換）最優先顯示 -->
+                  <span v-if="trip.cancelled" class="signup-cancelled">倒隊</span>
+
+                  <!-- 報名表單（主要 CTA） -->
+                  <a
+                    v-else-if="isValidLink(trip.signup_url) && !trip.signup_closed"
+                    :href="trip.signup_url.trim()"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn-signup"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                      <path fill="currentColor" d="M9 2a1 1 0 0 0-1 1v1H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V3a1 1 0 0 0-1-1H9zm0 2h6v2H9V4zm-1 7h8v2H8v-2zm0 4h5v2H8v-2z"/>
+                    </svg>
+                    立即報名
+                  </a>
+                  <span
+                    v-else-if="isValidLink(trip.signup_url) && trip.signup_closed"
+                    class="signup-closed"
+                  >報名已截止</span>
+                  <span v-else class="signup-pending">報名尚未開放</span>
+
+                  <!-- FB 貼文（次要連結） -->
+                  <a
+                    v-if="isValidLink(trip.facebook_url)"
+                    :href="trip.facebook_url.trim()"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn-fb"
+                  >查看 FB 貼文 →</a>
+                </div>
               </div>
             </div>
           </div>
@@ -108,6 +134,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { doc, getDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { db, storage } from '../firebase';
+import { isValidLink } from '../utils/links';
+import { parseScheduleDate } from '../utils/scheduleDate';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import { preloadImages } from '../utils/preloadImages';
 import { withTimeout } from '../utils/withTimeout';
@@ -162,10 +190,6 @@ function getUniquePhotos(items) {
     seenUrls.add(item.url);
     return true;
   });
-}
-
-function isValidFacebookUrl(url) {
-  return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
 }
 
 async function loadHeroImage() {
@@ -246,23 +270,6 @@ function shufflePhotos(items) {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
-}
-
-// 將行事曆的日期字串（如 "5/1-5/3"、"3/14"）解析成 Date
-// 若計算出的日期已超過 6 個月前，則視為下一年度的行程
-function parseScheduleDate(dateStr) {
-  const firstPart = dateStr.split('-')[0].trim();
-  const parts = firstPart.split('/');
-  if (parts.length < 2) return null;
-  const month = parseInt(parts[0], 10);
-  const day = parseInt(parts[1], 10);
-  if (isNaN(month) || isNaN(day)) return null;
-  const now = new Date();
-  const date = new Date(now.getFullYear(), month - 1, day);
-  if (now - date > 180 * 24 * 60 * 60 * 1000) {
-    return new Date(now.getFullYear() + 1, month - 1, day);
-  }
-  return date;
 }
 
 onMounted(async () => {
@@ -441,9 +448,83 @@ onMounted(async () => {
   margin: 0;
 }
 
+.recent-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* 報名表單按鈕（主要 CTA） */
+.btn-signup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #1A432D;
+  color: #fff;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-decoration: none;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(26, 67, 45, 0.25);
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.btn-signup:hover {
+  background-color: #245c3d;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(26, 67, 45, 0.3);
+}
+.btn-signup svg { display: block; }
+
+/* 報名尚未開放時的提示 */
+.signup-pending {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #f1f1f1;
+  color: #999;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px dashed #d6d6d6;
+  line-height: 1;
+}
+
+/* 報名已截止時的提示 */
+.signup-closed {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #f7eceb;
+  color: #b5524a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid #e8c9c5;
+  line-height: 1;
+}
+
+/* 倒隊（取消出隊）的徽章 */
+.signup-cancelled {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #ececec;
+  color: #777;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid #d6d6d6;
+  line-height: 1;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
 .btn-fb {
   display: inline-block;
-  margin-top: 10px;
   font-size: 0.85rem;
   color: #1877F2;
   text-decoration: none;

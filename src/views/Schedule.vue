@@ -37,19 +37,53 @@
               <div class="info-side">
                 <div class="title-with-icon">
                   <h3 :class="getTitleLengthClass(item.title)">{{ item.title }}</h3>
-                  
-                  <a
-                    v-if="isValidFacebookUrl(item.facebook_url)"
-                    :href="item.facebook_url.trim()"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="fb-link"
-                    @click.stop
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" class="fb-icon">
-                      <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                  </a>
+
+                  <div class="item-actions">
+                    <!-- 倒隊（幹部手動切換）最優先顯示 -->
+                    <span v-if="item.cancelled" class="signup-cancelled" @click.stop>
+                      倒隊
+                    </span>
+
+                    <!-- 已出隊（行程日期已過） -->
+                    <span v-else-if="isTripPast(item.date)" class="signup-done" @click.stop>
+                      ⛰ 平安下山
+                    </span>
+
+                    <!-- 報名表單 -->
+                    <a
+                      v-else-if="isValidLink(item.signup_url) && !item.signup_closed"
+                      :href="item.signup_url.trim()"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="signup-link"
+                      @click.stop
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" class="signup-icon" aria-hidden="true">
+                        <path fill="currentColor" d="M9 2a1 1 0 0 0-1 1v1H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V3a1 1 0 0 0-1-1H9zm0 2h6v2H9V4zm-1 7h8v2H8v-2zm0 4h5v2H8v-2z"/>
+                      </svg>
+                      <span>報名表單</span>
+                    </a>
+                    <span
+                      v-else-if="isValidLink(item.signup_url) && item.signup_closed"
+                      class="signup-closed"
+                      @click.stop
+                    >報名已截止</span>
+                    <span v-else class="signup-pending" @click.stop>報名尚未開放</span>
+
+                    <!-- FB 連結 -->
+                    <a
+                      v-if="isValidLink(item.facebook_url)"
+                      :href="item.facebook_url.trim()"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="fb-link"
+                      @click.stop
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" class="fb-icon">
+                        <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                      </svg>
+                    </a>
+                  </div>
                 </div>
               </div>
 
@@ -80,6 +114,8 @@ import { doc, getDoc } from "firebase/firestore";
 
 defineOptions({ name: 'Schedule' });
 import { db } from '../firebase';
+import { isValidLink } from '../utils/links';
+import { isTripPast } from '../utils/scheduleDate';
 import { withTimeout } from '../utils/withTimeout';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -105,10 +141,6 @@ function getTitleLengthClass(title) {
 const toggleDropdown = (index) => {
   activeIndex.value = activeIndex.value === index ? null : index;
 };
-
-function isValidFacebookUrl(url) {
-  return typeof url === 'string' && url.trim() !== '' && url.trim() !== '無';
-}
 
 // --- 初始化抓取資料 ---
 onMounted(async () => {
@@ -174,9 +206,64 @@ onMounted(async () => {
 .info-side h3 { margin: 0; color: #333; font-size: 1.3rem; min-width: 0; }
 
 /* 5. 互動元素 */
+.item-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+
 .fb-link { display: flex; align-items: center; transition: transform 0.2s; }
 .fb-link:hover { transform: scale(1.15); }
 .fb-icon { width: 26px; height: 26px; display: block; }
+
+/* 報名表單按鈕 */
+.signup-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  background: #1A432D; color: #fff;
+  font-size: 0.85rem; font-weight: 600; white-space: nowrap;
+  text-decoration: none; line-height: 1;
+  box-shadow: 0 2px 6px rgba(26, 67, 45, 0.25);
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.signup-link:hover {
+  background: #245c3d; transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(26, 67, 45, 0.3);
+}
+.signup-icon { display: block; }
+
+/* 報名尚未開放時的提示 */
+.signup-pending {
+  display: inline-flex; align-items: center;
+  padding: 6px 14px; border-radius: 999px;
+  background: #f1f1f1; color: #999;
+  font-size: 0.8rem; font-weight: 500; white-space: nowrap;
+  border: 1px dashed #d6d6d6; cursor: default; line-height: 1;
+}
+
+/* 報名已截止時的提示 */
+.signup-closed {
+  display: inline-flex; align-items: center;
+  padding: 6px 14px; border-radius: 999px;
+  background: #f7eceb; color: #b5524a;
+  font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+  border: 1px solid #e8c9c5; cursor: default; line-height: 1;
+}
+
+/* 已出隊（平安下山）的徽章 */
+.signup-done {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 14px; border-radius: 999px;
+  background: #eaf3ec; color: #1A432D;
+  font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+  border: 1px solid #cfe5d6; cursor: default; line-height: 1;
+}
+
+/* 倒隊（取消出隊）的徽章 */
+.signup-cancelled {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 14px; border-radius: 999px;
+  background: #ececec; color: #777;
+  font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+  border: 1px solid #d6d6d6; cursor: default; line-height: 1;
+  text-decoration: line-through; text-decoration-thickness: 1.5px;
+}
 
 .toggle-arrow {
   display: flex; align-items: center; justify-content: center;
@@ -216,6 +303,13 @@ onMounted(async () => {
   }
   .info-side h3.is-long-title { font-size: 0.88rem; }
   .info-side h3.is-extra-long-title { font-size: 0.78rem; }
+  .title-with-icon { flex-wrap: wrap; }
+  .item-actions { gap: 10px; }
   .fb-link { flex: 0 0 auto; }
+  .signup-link { padding: 5px 12px; font-size: 0.8rem; }
+  .signup-pending,
+  .signup-closed,
+  .signup-done,
+  .signup-cancelled { padding: 5px 12px; font-size: 0.75rem; }
 }
 </style>

@@ -4,6 +4,28 @@
 
     <main class="admin-main">
 
+      <AdminHelpPanel title="操作說明：行事曆與「隊伍狀態」怎麼運作？">
+        <p>輸入學期（例：<code>114-2</code>）按「載入」即可編輯；新學期會出現「建立新學期」。每筆行程填日期、名稱、FB／報名連結與簡介，改完按「<strong>儲存全部</strong>」。</p>
+        <ul>
+          <li><strong>日期</strong>要寫成 <code>5/1</code> 或 <code>5/1-5/3</code>（斜線＋減號，不要寫「5月1日」，否則首頁與「平安下山」判斷會失效）。</li>
+          <li><strong>報名表單限 Google 表單</strong>（<code>forms.gle</code> 或 <code>docs.google.com/forms</code>）；貼錯會變黃並擋下儲存。</li>
+        </ul>
+        <p>每支隊伍在前台只會顯示<strong>一個</strong>狀態徽章，由上而下先符合先顯示：</p>
+        <table>
+          <thead>
+            <tr><th>前台顯示</th><th>出現條件</th><th>由誰控制</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>灰色刪節線「<strong>倒隊</strong>」</td><td>勾選了「倒隊」</td><td>幹部手動勾</td></tr>
+            <tr><td>綠色「<strong>⛰ 平安下山</strong>」</td><td>行程日期已經過了</td><td><strong>自動</strong>，不用設定</td></tr>
+            <tr><td>綠色「<strong>報名表單／立即報名</strong>」</td><td>有貼 Google 表單，且未勾「報名已截止」</td><td>幹部貼連結</td></tr>
+            <tr><td>紅色「<strong>報名已截止</strong>」</td><td>有貼連結，且勾了「報名已截止」</td><td>幹部手動勾</td></tr>
+            <tr><td>灰色「<strong>報名尚未開放</strong>」</td><td>沒貼報名連結</td><td>留空即是</td></tr>
+          </tbody>
+        </table>
+        <p class="help-note">「平安下山」是依日期<strong>自動</strong>切換的，出隊日一過隔天就會變，幹部不用手動改。只有「倒隊」「報名已截止」需要手動勾。</p>
+      </AdminHelpPanel>
+
       <!-- 學期選擇 -->
       <section class="admin-section">
         <h3>選擇學期</h3>
@@ -63,7 +85,41 @@
               </div>
               <div class="field-row">
                 <label>FB 連結（無則填「無」）</label>
-                <input v-model="item.facebook_url" placeholder="https://..." />
+                <input
+                  v-model="item.facebook_url"
+                  placeholder="https://www.facebook.com/..."
+                  :class="{ 'input-warn': isFbInvalid(item.facebook_url) }"
+                />
+                <span class="signup-hint signup-hint-warn" v-if="isFbInvalid(item.facebook_url)">
+                  ⚠️ 這看起來不像 Facebook 連結，請確認網址（沒有 FB 就填「無」）
+                </span>
+              </div>
+              <div class="field-row full-width">
+                <label>報名表單連結（選填，限 Google 表單；留空前台會顯示「報名尚未開放」）</label>
+                <input
+                  v-model="item.signup_url"
+                  placeholder="貼上 Google 表單連結，例：https://forms.gle/... 或 https://docs.google.com/forms/..."
+                  :class="{ 'input-warn': isSignupInvalid(item.signup_url) }"
+                />
+                <span class="signup-hint" :class="signupHintClass(item.signup_url)">
+                  <template v-if="!item.signup_url || !item.signup_url.trim()">
+                    ⚠️ 尚未貼上連結，前台這支隊伍會顯示「報名尚未開放」
+                  </template>
+                  <template v-else-if="isSignupInvalid(item.signup_url)">
+                    ⚠️ 這不是有效的 Google 表單連結，請貼 forms.gle 或 docs.google.com/forms 的網址
+                  </template>
+                  <template v-else>
+                    ✅ 前台會顯示可點擊的「報名表單」按鈕
+                  </template>
+                </span>
+                <label class="signup-closed-toggle">
+                  <input type="checkbox" v-model="item.signup_closed" />
+                  報名已截止（勾選後前台改顯示「報名已截止」，連結不可點擊）
+                </label>
+                <label class="signup-closed-toggle cancelled-toggle">
+                  <input type="checkbox" v-model="item.cancelled" />
+                  倒隊（這次無法出隊；勾選後前台改顯示「倒隊」，並蓋過其他狀態）
+                </label>
               </div>
               <div class="field-row full-width">
                 <label>行程簡介（選填）</label>
@@ -89,7 +145,9 @@
 import { computed, ref } from 'vue';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { isGoogleFormUrl, isFacebookUrl } from '../../utils/links';
 import AdminHeader from '../../components/admin/AdminHeader.vue';
+import AdminHelpPanel from '../../components/admin/AdminHelpPanel.vue';
 
 const semester = ref('');
 const scheduleTitle = ref('');
@@ -154,8 +212,28 @@ function isValidScheduleDate(dateStr) {
     && Number.isInteger(day) && day >= 1 && day <= 31;
 }
 
+// 報名連結：有填且不是合法 Google 表單 → 視為錯誤（空白或「無」不算錯）
+function isSignupInvalid(url) {
+  const trimmed = String(url || '').trim();
+  if (trimmed === '' || trimmed === '無') return false;
+  return !isGoogleFormUrl(trimmed);
+}
+
+// FB 連結：有填且不是「無」也不是合法 Facebook 網址 → 視為錯誤
+function isFbInvalid(url) {
+  const trimmed = String(url || '').trim();
+  if (trimmed === '' || trimmed === '無') return false;
+  return !isFacebookUrl(trimmed);
+}
+
+function signupHintClass(url) {
+  const trimmed = String(url || '').trim();
+  if (trimmed === '' || isSignupInvalid(trimmed)) return 'signup-hint-warn';
+  return '';
+}
+
 function addItem() {
-  items.value.push({ date: '', title: '', facebook_url: '', description: '' });
+  items.value.push({ date: '', title: '', facebook_url: '', signup_url: '', signup_closed: false, cancelled: false, description: '' });
 }
 
 function removeItem(idx) {
@@ -167,6 +245,18 @@ async function saveSchedule() {
   const sem = semester.value.trim();
   if (!sem) return;
 
+  // 儲存前驗證連結格式，有錯就擋下並提示是第幾筆
+  const badSignup = items.value.findIndex(i => isSignupInvalid(i.signup_url));
+  if (badSignup !== -1) {
+    setStatus(`第 ${badSignup + 1} 筆的報名表單連結不是有效的 Google 表單，請修正後再儲存`, false);
+    return;
+  }
+  const badFb = items.value.findIndex(i => isFbInvalid(i.facebook_url));
+  if (badFb !== -1) {
+    setStatus(`第 ${badFb + 1} 筆的 FB 連結格式有誤，請修正或填「無」後再儲存`, false);
+    return;
+  }
+
   // 清理空欄位
   const cleanItems = items.value
     .filter(i => i.date?.trim() || i.title?.trim())
@@ -176,6 +266,13 @@ async function saveSchedule() {
         title: i.title?.trim() || '',
         facebook_url: i.facebook_url?.trim() || '無',
       };
+      if (i.signup_url?.trim()) {
+        obj.signup_url = i.signup_url.trim();
+        // 只有在有報名連結時，「已截止」才有意義
+        if (i.signup_closed) obj.signup_closed = true;
+      }
+      // 倒隊與報名連結無關，獨立儲存
+      if (i.cancelled) obj.cancelled = true;
       if (i.description?.trim()) obj.description = i.description.trim();
       return obj;
     });
@@ -264,6 +361,19 @@ async function saveSchedule() {
 
 .date-hint { font-size: 0.75rem; color: #999; }
 .date-hint-warn { color: #b9770a; font-weight: 600; }
+
+.signup-hint { font-size: 0.75rem; color: #2e7d52; }
+.signup-hint-warn { color: #b9770a; font-weight: 600; }
+
+.signup-closed-toggle {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 8px; font-size: 0.8rem; color: #555;
+  font-weight: 500; cursor: pointer; user-select: none;
+}
+.signup-closed-toggle input { width: 15px; height: 15px; cursor: pointer; accent-color: #b5524a; }
+
+.cancelled-toggle { color: #444; }
+.cancelled-toggle input { accent-color: #888; }
 
 .save-row { display: flex; justify-content: space-between; margin-top: 4px; }
 .hint { color: #999; text-align: center; padding: 20px 0; }
