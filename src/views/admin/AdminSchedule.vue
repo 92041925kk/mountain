@@ -109,12 +109,32 @@
                     ⚠️ 這不是有效的 Google 表單連結，請貼 forms.gle 或 docs.google.com/forms 的網址
                   </template>
                   <template v-else>
-                    ✅ 前台會顯示可點擊的「報名表單」按鈕
+                    ✅ 前台會依下方日期自動顯示「報名中／尚未開放／已截止」
                   </template>
                 </span>
+
+                <div class="signup-dates">
+                  <label class="signup-date-field">
+                    報名開始日期
+                    <input type="date" v-model="item.signup_start" :max="item.signup_end || undefined" />
+                  </label>
+                  <label class="signup-date-field">
+                    報名截止日期
+                    <input type="date" v-model="item.signup_end" :min="item.signup_start || undefined" />
+                  </label>
+                </div>
+                <span class="signup-hint" :class="{ 'signup-hint-warn': isSignupDateRangeInvalid(item) }">
+                  <template v-if="isSignupDateRangeInvalid(item)">
+                    ⚠️ 截止日期不能早於開始日期，請修正
+                  </template>
+                  <template v-else>
+                    兩個日期都可留空。開始日之前顯示「報名尚未開放」、截止日當天仍可報名、過了截止日顯示「報名已截止」。
+                  </template>
+                </span>
+
                 <label class="signup-closed-toggle">
                   <input type="checkbox" v-model="item.signup_closed" />
-                  報名已截止（勾選後前台改顯示「報名已截止」，連結不可點擊）
+                  立即關閉報名（不論上面日期，前台直接顯示「報名已截止」）
                 </label>
                 <label class="signup-closed-toggle cancelled-toggle">
                   <input type="checkbox" v-model="item.cancelled" />
@@ -232,8 +252,18 @@ function signupHintClass(url) {
   return '';
 }
 
+// 報名截止日不可早於開始日
+function isSignupDateRangeInvalid(item) {
+  if (!item.signup_start || !item.signup_end) return false;
+  return item.signup_end < item.signup_start;
+}
+
 function addItem() {
-  items.value.push({ date: '', title: '', facebook_url: '', signup_url: '', signup_closed: false, cancelled: false, description: '' });
+  items.value.push({
+    date: '', title: '', facebook_url: '',
+    signup_url: '', signup_start: '', signup_end: '',
+    signup_closed: false, cancelled: false, description: '',
+  });
 }
 
 function removeItem(idx) {
@@ -256,6 +286,11 @@ async function saveSchedule() {
     setStatus(`第 ${badFb + 1} 筆的 FB 連結格式有誤，請修正或填「無」後再儲存`, false);
     return;
   }
+  const badDate = items.value.findIndex(i => isSignupDateRangeInvalid(i));
+  if (badDate !== -1) {
+    setStatus(`第 ${badDate + 1} 筆的報名截止日期早於開始日期，請修正後再儲存`, false);
+    return;
+  }
 
   // 清理空欄位
   const cleanItems = items.value
@@ -268,7 +303,9 @@ async function saveSchedule() {
       };
       if (i.signup_url?.trim()) {
         obj.signup_url = i.signup_url.trim();
-        // 只有在有報名連結時，「已截止」才有意義
+        // 以下欄位只有在有報名連結時才有意義
+        if (i.signup_start) obj.signup_start = i.signup_start;
+        if (i.signup_end) obj.signup_end = i.signup_end;
         if (i.signup_closed) obj.signup_closed = true;
       }
       // 倒隊與報名連結無關，獨立儲存
@@ -364,6 +401,19 @@ async function saveSchedule() {
 
 .signup-hint { font-size: 0.75rem; color: #2e7d52; }
 .signup-hint-warn { color: #b9770a; font-weight: 600; }
+
+.signup-dates {
+  display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap;
+}
+.signup-date-field {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 0.78rem; color: #666; font-weight: 600;
+}
+.signup-date-field input {
+  padding: 7px 10px; border: 1px solid #ddd; border-radius: 7px;
+  font-size: 0.9rem; font-family: inherit;
+}
+.signup-date-field input:focus { outline: none; border-color: #1A432D; }
 
 .signup-closed-toggle {
   display: flex; align-items: center; gap: 7px;

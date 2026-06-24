@@ -18,14 +18,14 @@
   padding: 40px 20px;
 }
 .not-found-content h1 {
-  font-size: 6rem;
+  font-size: clamp(4rem, 18vw, 6rem);
   font-weight: bold;
   color: #1A432D;
   margin-bottom: 12px;
   line-height: 1;
 }
 .not-found-content p {
-  font-size: 1.15rem;
+  font-size: clamp(1rem, 4vw, 1.15rem);
   color: #666;
   margin-bottom: 28px;
 }

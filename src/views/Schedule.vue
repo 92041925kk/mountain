@@ -39,19 +39,19 @@
                   <h3 :class="getTitleLengthClass(item.title)">{{ item.title }}</h3>
 
                   <div class="item-actions">
-                    <!-- 倒隊（幹部手動切換）最優先顯示 -->
-                    <span v-if="item.cancelled" class="signup-cancelled" @click.stop>
+                    <!-- 倒隊（幹部手動切換）最優先 -->
+                    <span v-if="getTripStatus(item) === 'cancelled'" class="signup-cancelled" @click.stop>
                       倒隊
                     </span>
 
                     <!-- 已出隊（行程日期已過） -->
-                    <span v-else-if="isTripPast(item.date)" class="signup-done" @click.stop>
+                    <span v-else-if="getTripStatus(item) === 'done'" class="signup-done" @click.stop>
                       ⛰ 平安下山
                     </span>
 
-                    <!-- 報名表單 -->
+                    <!-- 報名中：可點報名表單 -->
                     <a
-                      v-else-if="isValidLink(item.signup_url) && !item.signup_closed"
+                      v-else-if="getTripStatus(item) === 'signup-open'"
                       :href="item.signup_url.trim()"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -63,11 +63,15 @@
                       </svg>
                       <span>報名表單</span>
                     </a>
+
+                    <!-- 報名已截止 -->
                     <span
-                      v-else-if="isValidLink(item.signup_url) && item.signup_closed"
+                      v-else-if="getTripStatus(item) === 'signup-closed'"
                       class="signup-closed"
                       @click.stop
                     >報名已截止</span>
+
+                    <!-- 報名尚未開放 -->
                     <span v-else class="signup-pending" @click.stop>報名尚未開放</span>
 
                     <!-- FB 連結 -->
@@ -115,7 +119,7 @@ import { doc, getDoc } from "firebase/firestore";
 defineOptions({ name: 'Schedule' });
 import { db } from '../firebase';
 import { isValidLink } from '../utils/links';
-import { isTripPast } from '../utils/scheduleDate';
+import { getTripStatus } from '../utils/scheduleDate';
 import { withTimeout } from '../utils/withTimeout';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -302,7 +306,12 @@ onMounted(async () => {
     line-height: 1.35;
   }
   .info-side h3.is-long-title { font-size: 0.88rem; }
-  .info-side h3.is-extra-long-title { font-size: 0.78rem; }
+  /* 安全網：超長標題（≥22 字）改為允許換行，避免在窄螢幕超出卡片造成左右捲動 */
+  .info-side h3.is-extra-long-title {
+    font-size: 0.78rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .title-with-icon { flex-wrap: wrap; }
   .item-actions { gap: 10px; }
   .fb-link { flex: 0 0 auto; }

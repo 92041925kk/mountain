@@ -86,12 +86,12 @@
                 <h3>{{ trip.title }}</h3>
 
                 <div class="recent-card-actions">
-                  <!-- 倒隊（幹部手動切換）最優先顯示 -->
-                  <span v-if="trip.cancelled" class="signup-cancelled">倒隊</span>
+                  <!-- 倒隊（幹部手動切換）最優先 -->
+                  <span v-if="getTripStatus(trip) === 'cancelled'" class="signup-cancelled">倒隊</span>
 
-                  <!-- 報名表單（主要 CTA） -->
+                  <!-- 報名中：主要 CTA -->
                   <a
-                    v-else-if="isValidLink(trip.signup_url) && !trip.signup_closed"
+                    v-else-if="getTripStatus(trip) === 'signup-open'"
                     :href="trip.signup_url.trim()"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -102,10 +102,14 @@
                     </svg>
                     立即報名
                   </a>
+
+                  <!-- 報名已截止 -->
                   <span
-                    v-else-if="isValidLink(trip.signup_url) && trip.signup_closed"
+                    v-else-if="getTripStatus(trip) === 'signup-closed'"
                     class="signup-closed"
                   >報名已截止</span>
+
+                  <!-- 報名尚未開放 -->
                   <span v-else class="signup-pending">報名尚未開放</span>
 
                   <!-- FB 貼文（次要連結） -->
@@ -135,7 +139,7 @@ import { doc, getDoc, collection, getDocs, query, orderBy, limit } from 'firebas
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { isValidLink } from '../utils/links';
-import { parseScheduleDate } from '../utils/scheduleDate';
+import { parseScheduleDate, getTripStatus } from '../utils/scheduleDate';
 import LoadingOverlay from '../components/LoadingOverlay.vue';
 import { preloadImages } from '../utils/preloadImages';
 import { withTimeout } from '../utils/withTimeout';
