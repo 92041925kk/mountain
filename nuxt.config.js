@@ -1,4 +1,4 @@
-import { DEFAULT_SHARE_IMAGE } from './src/utils/seoDefaults.js'
+import { SHARE_PREVIEW_IMAGE, GOOGLE_THUMBNAIL_IMAGE } from './src/utils/seoDefaults.js'
 
 const SITE_URL = 'https://cycu-mountainclub.com/'
 const SITE_NAME = '中原大學登山社'
@@ -45,7 +45,9 @@ export default defineNuxtConfig({
           property: 'og:description',
           content: SITE_DESCRIPTION,
         },
-        { property: 'og:image', content: DEFAULT_SHARE_IMAGE },
+        { property: 'og:image', content: SHARE_PREVIEW_IMAGE },
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
         { property: 'og:image:alt', content: SITE_NAME },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: SITE_NAME },
@@ -53,7 +55,7 @@ export default defineNuxtConfig({
           name: 'twitter:description',
           content: SITE_DESCRIPTION,
         },
-        { name: 'twitter:image', content: DEFAULT_SHARE_IMAGE },
+        { name: 'twitter:image', content: SHARE_PREVIEW_IMAGE },
       ],
       link: [
         { rel: 'canonical', href: SITE_URL },
@@ -72,11 +74,17 @@ export default defineNuxtConfig({
             alternateName: ['中原登山社', 'CYMC'],
             url: SITE_URL,
             inLanguage: 'zh-TW',
+            image: GOOGLE_THUMBNAIL_IMAGE,
             publisher: {
               '@type': 'Organization',
               name: SITE_NAME,
               url: SITE_URL,
-              logo: `${SITE_URL}favicon.png`,
+              logo: {
+                '@type': 'ImageObject',
+                url: GOOGLE_THUMBNAIL_IMAGE,
+                width: 1200,
+                height: 1200,
+              },
             },
           }),
         },
